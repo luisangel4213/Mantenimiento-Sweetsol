@@ -1,0 +1,13 @@
+export const ROLES = {
+  JEFE_MANTENIMIENTO: 'JEFE_MANTENIMIENTO',
+  OPERARIO_MANTENIMIENTO: 'OPERARIO_MANTENIMIENTO',
+  OPERARIO_PRODUCCION: 'OPERARIO_PRODUCCION',
+}
+
+export const ROLES_LABEL = {
+  [ROLES.JEFE_MANTENIMIENTO]: 'Jefe de Mantenimiento',
+  [ROLES.OPERARIO_MANTENIMIENTO]: 'Operario de Mantenimiento',
+  [ROLES.OPERARIO_PRODUCCION]: 'Operario de Producción',
+}
+
+export const ROLES_LIST = Object.values(ROLES)

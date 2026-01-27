@@ -1,0 +1,23 @@
+{
+  "name": "sweetsol-mantenimiento-backend",
+  "version": "1.0.0",
+  "description": "Backend Node.js + Express para sistema de control de mantenimiento industrial",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "init:env": "node scripts/init-env.js",
+    "fix:mysql": "node scripts/fix-mysql.js",
+    "fix:users": "node database/fixUsers.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "mysql2": "^3.11.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

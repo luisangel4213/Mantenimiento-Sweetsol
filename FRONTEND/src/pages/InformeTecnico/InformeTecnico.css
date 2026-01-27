@@ -1,0 +1,276 @@
+.informe-tecnico__header {
+  margin-bottom: 1.5rem;
+}
+
+.informe-tecnico__back {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #1e3a5f;
+  text-decoration: none;
+}
+
+.informe-tecnico__back:hover {
+  text-decoration: underline;
+}
+
+.informe-tecnico__orden {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.informe-tecnico__error {
+  color: #b91c1c;
+  margin-bottom: 1rem;
+}
+
+.informe-tecnico__resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.informe-tecnico__row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.informe-tecnico__row dt {
+  margin: 0;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.informe-tecnico__row dd {
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.informe-tecnico__empty {
+  margin: 0;
+  color: #64748b;
+}
+
+.informe-tecnico__evidencias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.informe-tecnico__ev-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.informe-tecnico__ev-img-wrap {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.informe-tecnico__ev-img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.informe-tecnico__ev-link {
+  font-size: 0.85rem;
+  color: #1e3a5f;
+  text-decoration: none;
+}
+
+.informe-tecnico__ev-link:hover {
+  text-decoration: underline;
+}
+
+.informe-tecnico__firma-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.informe-tecnico__export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.informe-tecnico__btn {
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.informe-tecnico__btn:hover {
+  opacity: 0.9;
+}
+
+.informe-tecnico__btn--pdf {
+  background: #dc2626;
+  color: #fff;
+}
+
+.informe-tecnico__btn--excel {
+  background: #059669;
+  color: #fff;
+}
+
+.informe-tecnico__info {
+  margin: 0;
+  padding: 0.75rem;
+  background: #e8f0f8;
+  border-left: 4px solid #1e3a5f;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #1e3a5f;
+  line-height: 1.5;
+}
+
+.informe-tecnico__table-wrapper {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.informe-tecnico__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.informe-tecnico__table thead {
+  background: #1e3a5f;
+  color: #fff;
+}
+
+.informe-tecnico__table th {
+  padding: 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  border: 1px solid #2d5a87;
+}
+
+.informe-tecnico__table td {
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.informe-tecnico__table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.informe-tecnico__table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+.informe-tecnico__observaciones {
+  margin-top: 1rem;
+}
+
+.informe-tecnico__observaciones-text {
+  margin: 0;
+  padding: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #334155;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.informe-tecnico__firmas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.informe-tecnico__firma-item {
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.informe-tecnico__firma-item h4 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: #1e3a5f;
+}
+
+.informe-tecnico__firma-item p {
+  margin: 0.5rem 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.informe-tecnico__firma-img {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.informe-tecnico__firma-img img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.informe-tecnico__firma-canvas {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.informe-tecnico__firma-canvas .informe-tecnico__firma-text {
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.informe-tecnico__info-export {
+  margin: 1rem 0 0;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .informe-tecnico__table-wrapper {
+    font-size: 0.75rem;
+  }
+
+  .informe-tecnico__table th,
+  .informe-tecnico__table td {
+    padding: 0.35rem;
+  }
+
+  .informe-tecnico__firmas {
+    grid-template-columns: 1fr;
+  }
+}

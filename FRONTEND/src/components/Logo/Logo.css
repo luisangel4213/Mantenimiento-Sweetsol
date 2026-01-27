@@ -1,0 +1,72 @@
+.logo {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-right: 0.5rem;
+}
+
+.logo__svg {
+  height: 42px;
+  width: auto;
+  display: block;
+}
+
+.logo__arc {
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.6));
+}
+
+.logo__text {
+  font-family: 'Arial', 'Helvetica', 'Segoe UI', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: 1px;
+  font-style: normal;
+}
+
+/* Borde negro (más externo) */
+.logo__text--outline-black {
+  fill: none;
+  stroke: #000000;
+  stroke-width: 5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  paint-order: stroke fill;
+}
+
+/* Borde azul claro (intermedio) */
+.logo__text--outline-blue {
+  fill: none;
+  stroke: #87CEEB;
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  paint-order: stroke fill;
+}
+
+/* Relleno rojo (interior) */
+.logo__text--fill {
+  fill: #FF0000;
+  stroke: none;
+  paint-order: fill stroke;
+}
+
+/* Responsive */
+@media (max-width: 1023px) {
+  .logo__svg {
+    height: 36px;
+  }
+  
+  .logo__text {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 599px) {
+  .logo__svg {
+    height: 32px;
+  }
+  
+  .logo__text {
+    font-size: 22px;
+  }
+}

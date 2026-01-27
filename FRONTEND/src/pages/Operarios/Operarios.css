@@ -1,0 +1,203 @@
+.operarios {
+  padding: 1.5rem;
+}
+
+.operarios__header {
+  margin-bottom: 2rem;
+}
+
+.operarios__subtitle {
+  margin: 0.5rem 0 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.operarios__error {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-left: 4px solid #dc2626;
+  border-radius: 6px;
+  color: #991b1b;
+  font-size: 0.9rem;
+}
+
+.operarios__success {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  border-left: 4px solid #10b981;
+  border-radius: 6px;
+  color: #065f46;
+  font-size: 0.9rem;
+}
+
+.operarios__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.operarios__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.operarios__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.operarios__label {
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.operarios__required {
+  color: #dc2626;
+}
+
+.operarios__input {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.operarios__input:focus {
+  outline: none;
+  border-color: #1e3a5f;
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+}
+
+.operarios__input:disabled {
+  background: #f1f5f9;
+  cursor: not-allowed;
+}
+
+.operarios__input--uppercase {
+  text-transform: uppercase;
+}
+
+.operarios__actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.operarios__btn {
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.operarios__btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.operarios__btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.operarios__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.operarios__btn--primary {
+  background: #1e3a5f;
+  color: #fff;
+}
+
+.operarios__btn--secondary {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.operarios__empty {
+  margin: 0;
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.operarios__table-wrapper {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.operarios__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.operarios__table thead {
+  background: #1e3a5f;
+  color: #fff;
+}
+
+.operarios__table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.operarios__table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.operarios__table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.operarios__status {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.operarios__status--activo {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.operarios__status--inactivo {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 768px) {
+  .operarios {
+    padding: 1rem;
+  }
+
+  .operarios__row {
+    grid-template-columns: 1fr;
+  }
+
+  .operarios__actions {
+    flex-direction: column;
+  }
+
+  .operarios__btn {
+    width: 100%;
+  }
+}
+

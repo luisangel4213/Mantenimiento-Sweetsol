@@ -1,0 +1,11 @@
+export const ROLES = {
+  JEFE_MANTENIMIENTO: 'JEFE_MANTENIMIENTO',
+  OPERARIO_MANTENIMIENTO: 'OPERARIO_MANTENIMIENTO',
+  OPERARIO_PRODUCCION: 'OPERARIO_PRODUCCION',
+}
+
+export const ROLES_LIST = Object.values(ROLES)
+
+export function isRoleValid(role) {
+  return role && ROLES_LIST.includes(role)
+}

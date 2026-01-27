@@ -1,0 +1,1 @@
+export { FirmaCanvas } from './FirmaCanvas'

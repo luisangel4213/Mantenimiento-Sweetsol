@@ -1,0 +1,50 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.layout__main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  background-color: var(--color-bg-main, #f4f6f9);
+}
+
+/* Overlay del drawer (tablet/móvil) */
+.layout__overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  top: 56px;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 99;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.layout__overlay--visible {
+  display: block;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+@media (min-width: 1024px) {
+  .layout__overlay {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .layout__main {
+    padding: 1rem 1.25rem;
+  }
+}

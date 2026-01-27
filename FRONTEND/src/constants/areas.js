@@ -1,0 +1,59 @@
+/**
+ * Estructura de áreas y máquinas de la planta
+ */
+export const AREAS_MAQUINAS = {
+  'MEZCLA CANDY': [
+    'LINEA MEZCLA CANDY 1',
+    'LINEA MEZCLA CANDY 2',
+  ],
+  'CANDY': [
+    'LINEA CANDY MINI 1',
+    'LINEA CANCY MINI A',
+    'LINEA CANY MINI 1A',
+    'LINEA CANDY MINI 2A',
+    'LINEA CANDY MAXI 4A',
+    'LINEA CANDY MIDI 5A',
+    'LINEA CANDY MINI 7',
+    'LINEA CANDY MINI 11',
+    'LINEA CANDY MAXI 12',
+    'LINEA MINI PACK 1',
+    'LINEA MINI PACK 2',
+    'LINEA MINI PACK 3',
+  ],
+  'MEZCLA TABLETAS': [
+    'PRE-MEZCLA',
+    'MOLIENDA',
+    'PULVERIZADO',
+  ],
+  'TABLETEADO 1': [
+    'LINEA TABLETEADO 1',
+    'LINEA TABLETEADO 2',
+    'LINEA TABLETEADO 3',
+    'LINEA TABLETEADO 4',
+  ],
+  'DIPS': [
+    'LINEA DIPS 1',
+    'LINEA DIPS 2',
+  ],
+  'MEZCLA PITILLOS': [
+    'LINEA MEZCLA 1',
+    'LINEA MEZCLA 2',
+  ],
+  'PITILLOS': [
+    'LINEA PITILLOS TOYAMA 1',
+    'LINEA PITILLOS TOYAMA 2',
+  ],
+  'EMPAQUES': [
+    'MAXIPACK',
+    'KENWY',
+  ],
+  'COFICADO': [
+    'LINEA CODIFICADOR 1',
+    'LINEA CODIFICADOR 2',
+  ],
+  'FLOW PACK MULTI': [
+    'LINEA 1',
+  ],
+}
+
+export const AREAS_LIST = Object.keys(AREAS_MAQUINAS)

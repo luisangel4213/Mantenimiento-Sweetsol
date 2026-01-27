@@ -1,0 +1,1 @@
+export { OrdenDetalle } from './OrdenDetalle'

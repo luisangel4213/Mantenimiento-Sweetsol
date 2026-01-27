@@ -1,0 +1,1 @@
+export { InformeTecnico } from './InformeTecnico'

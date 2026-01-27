@@ -1,0 +1,236 @@
+.reporte-orden-trabajo {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.reporte-orden-trabajo__header {
+  margin-bottom: 1.5rem;
+}
+
+.reporte-orden-trabajo__back {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #1e3a5f;
+  text-decoration: none;
+}
+
+.reporte-orden-trabajo__back:hover {
+  text-decoration: underline;
+}
+
+.reporte-orden-trabajo__orden {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.reporte-orden-trabajo__error {
+  color: #b91c1c;
+  margin-bottom: 1rem;
+}
+
+.reporte-orden-trabajo__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.reporte-orden-trabajo__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.reporte-orden-trabajo__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reporte-orden-trabajo__field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.reporte-orden-trabajo__field input,
+.reporte-orden-trabajo__field textarea {
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.reporte-orden-trabajo__textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.reporte-orden-trabajo__op-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #f8fafc;
+}
+
+.reporte-orden-trabajo__op-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.reporte-orden-trabajo__op-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.reporte-orden-trabajo__op-fields input,
+.reporte-orden-trabajo__op-fields textarea {
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.reporte-orden-trabajo__op-fields textarea {
+  grid-column: 1 / -1;
+}
+
+.reporte-orden-trabajo__op-fields label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.reporte-orden-trabajo__btn-add,
+.reporte-orden-trabajo__btn-remove {
+  padding: 0.5rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.reporte-orden-trabajo__btn-add {
+  background: #e8f0f8;
+  color: #1e3a5f;
+  font-weight: 500;
+}
+
+.reporte-orden-trabajo__btn-add:hover {
+  background: #d4e4f4;
+}
+
+.reporte-orden-trabajo__btn-remove {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.reporte-orden-trabajo__btn-remove:hover {
+  background: #fee2e2;
+}
+
+.reporte-orden-trabajo__firmas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.reporte-orden-trabajo__firma-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reporte-orden-trabajo__firma-item h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #1e3a5f;
+}
+
+.reporte-orden-trabajo__firma-item input {
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.reporte-orden-trabajo__btn-generar {
+  padding: 0.75rem 1.5rem;
+  background: #1e3a5f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.reporte-orden-trabajo__btn-generar:hover {
+  background: #2d5a87;
+}
+
+.reporte-orden-trabajo__modo-lectura {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  background: #e8f0f8;
+  border-left: 4px solid #1e3a5f;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #1e3a5f;
+}
+
+.reporte-orden-trabajo__advertencia {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+
+.reporte-orden-trabajo__text {
+  margin: 0 0 1rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.reporte-orden-trabajo__field input:disabled,
+.reporte-orden-trabajo__field textarea:disabled {
+  background: #f1f5f9;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.reporte-orden-trabajo__op-fields input:disabled,
+.reporte-orden-trabajo__op-fields textarea:disabled {
+  background: #f1f5f9;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .reporte-orden-trabajo__row {
+    grid-template-columns: 1fr;
+  }
+
+  .reporte-orden-trabajo__firmas {
+    grid-template-columns: 1fr;
+  }
+}

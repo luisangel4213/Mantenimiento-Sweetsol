@@ -1,0 +1,15 @@
+/* Reset y base */
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #f4f6f9;
+  color: #334155;
+}
+
+#root {
+  min-height: 100vh;
+}

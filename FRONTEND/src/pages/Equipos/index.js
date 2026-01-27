@@ -1,0 +1,1 @@
+export { Equipos } from './Equipos'

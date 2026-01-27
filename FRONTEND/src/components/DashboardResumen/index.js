@@ -1,0 +1,1 @@
+export { DashboardResumen } from './DashboardResumen'
