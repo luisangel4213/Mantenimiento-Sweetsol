@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context'
-import { ROLES } from '../../constants'
+import { ROLES, ESTADOS_ORDEN } from '../../constants'
 import { Card, Loader, FirmaCanvas } from '../../components'
 import { exportarOrdenTrabajoPDF, exportarInformePDF, exportarInformeExcel } from '../../utils'
 import { mantenimientoService } from '../../services'
@@ -45,6 +45,18 @@ export const InformeTecnico = () => {
     )
   }
 
+  // Solo órdenes en Proceso cerrado pueden acceder al Informe Técnico
+  if (orden.estado !== ESTADOS_ORDEN.PROCESO_CERRADO) {
+    return (
+      <div className="informe-tecnico">
+        <p className="informe-tecnico__error">
+          Solo las órdenes en estado <strong>Proceso cerrado</strong> pueden generar o consultar el Informe Técnico de Mantenimiento. Esta orden está en estado &quot;{orden.estado || 'desconocido'}&quot;.
+        </p>
+        <Link to="/ordenes">Volver a órdenes</Link>
+      </div>
+    )
+  }
+
   const evidencias = Array.isArray(orden.evidencias) ? orden.evidencias : []
   const generadoPor = user?.nombre || user?.email || ''
   const tieneDatosReporte = orden?.datosReporte != null
@@ -64,20 +76,17 @@ export const InformeTecnico = () => {
 
   const { area, maquina } = extraerAreaMaquina(orden?.descripcion)
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (tieneDatosReporte) {
-      // Si tiene datosReporte, generar el reporte completo de orden de trabajo
-      // Usar las firmas guardadas del operario, pero si el jefe agregó su firma, usar esa
       const firmas = orden.datosReporte.firmas || {}
-      exportarOrdenTrabajoPDF(
+      await exportarOrdenTrabajoPDF(
         orden,
         orden.datosReporte,
         firmas.ejecutante || null,
         firmas.solicitante || null,
-        firmaEncargado || firmas.encargado || null  // Priorizar firma nueva del jefe
+        firmaEncargado || firmas.encargado || null
       )
     } else {
-      // Si no tiene datosReporte, usar el informe técnico simple
       exportarInformePDF(orden, firma, generadoPor)
     }
   }

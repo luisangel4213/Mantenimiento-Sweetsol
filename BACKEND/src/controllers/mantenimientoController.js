@@ -1,4 +1,6 @@
 import * as mantenimientoService from '../services/mantenimientoService.js'
+import * as User from '../models/User.js'
+import { ROLES } from '../constants/roles.js'
 
 export async function getOrdenes(req, res, next) {
   try {
@@ -112,8 +114,40 @@ export async function createInforme(req, res, next) {
 
 export async function asignarOrden(req, res, next) {
   try {
-    const asignadoA = req.body.asignadoA != null ? Number(req.body.asignadoA) : null
-    const data = await mantenimientoService.asignarOrden(req.params.id, asignadoA)
+    let asignadoA = null
+    const asignadoUsuario = req.body.asignadoUsuario != null && String(req.body.asignadoUsuario).trim() !== ''
+      ? String(req.body.asignadoUsuario).trim()
+      : null
+    const asignadoNombre = req.body.asignadoNombre != null && String(req.body.asignadoNombre).trim() !== ''
+      ? String(req.body.asignadoNombre).trim()
+      : null
+
+    // Resolver operario: primero por usuario de login, luego por nombre completo
+    if (asignadoUsuario) {
+      const u = await User.findByUsuarioAndRole(asignadoUsuario, ROLES.OPERARIO_MANTENIMIENTO)
+      if (u) asignadoA = u.id
+    }
+    if (asignadoA == null && asignadoNombre) {
+      const u = await User.findByNombreAndRole(asignadoNombre, ROLES.OPERARIO_MANTENIMIENTO)
+      if (u) asignadoA = u.id
+    }
+    if (asignadoA == null && req.body.asignadoA != null) {
+      asignadoA = Number(req.body.asignadoA)
+    }
+
+    if (asignadoA == null && (asignadoUsuario || asignadoNombre)) {
+      return res.status(400).json({
+        message: 'No se encontró un usuario de mantenimiento asociado a este operario. Verifique que el operario tenga un usuario creado en el sistema con rol de Operario de Mantenimiento.',
+      })
+    }
+
+    let data = await mantenimientoService.asignarOrden(req.params.id, asignadoA)
+    // Guardar descripción adicional si se envió (al asignar, el Jefe suele ingresarla aquí)
+    if (req.body.descripcionAdicional !== undefined && req.body.descripcionAdicional !== null) {
+      const datosReporte = { ...(data.datosReporte || {}), descripcionAdicional: String(req.body.descripcionAdicional).trim() }
+      await mantenimientoService.updateOrden(req.params.id, { datosReporte })
+      data = await mantenimientoService.getOrdenById(req.params.id)
+    }
     res.json(data)
   } catch (e) {
     next(e)

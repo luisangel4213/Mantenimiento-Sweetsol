@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Loader } from '../../components'
 import { equiposService } from '../../services'
+import { AREAS_MAQUINAS, AREAS_LIST } from '../../constants/areas'
 import './Equipos.css'
 
 export const Equipos = () => {
@@ -14,6 +15,16 @@ export const Equipos = () => {
   const [filtroArea, setFiltroArea] = useState('')
   const [filtroCriticidad, setFiltroCriticidad] = useState('')
 
+  // Filtros por área/máquina de catálogo (igual a Solicitud de Mantenimiento)
+  const [filtroAreaCatalogo, setFiltroAreaCatalogo] = useState('')
+  const [filtroMaquinaCatalogo, setFiltroMaquinaCatalogo] = useState('')
+  const [filtroMaquinasOpciones, setFiltroMaquinasOpciones] = useState([])
+
+  // Selección rápida de nombre por área/máquina (igual a Solicitud de Mantenimiento)
+  const [areaCatalogo, setAreaCatalogo] = useState('')
+  const [maquinasCatalogo, setMaquinasCatalogo] = useState([])
+  const [maquinaCatalogoSeleccionada, setMaquinaCatalogoSeleccionada] = useState('')
+
   const [formData, setFormData] = useState({
     nombre: '',
     codigo: '',
@@ -23,13 +34,35 @@ export const Equipos = () => {
     area: '',
   })
 
+  // Actualizar lista de máquinas del catálogo cuando cambia el área de producción
+  useEffect(() => {
+    if (areaCatalogo && AREAS_MAQUINAS[areaCatalogo]) {
+      setMaquinasCatalogo(AREAS_MAQUINAS[areaCatalogo])
+      setMaquinaCatalogoSeleccionada('')
+    } else {
+      setMaquinasCatalogo([])
+      setMaquinaCatalogoSeleccionada('')
+    }
+  }, [areaCatalogo])
+
+  // Actualizar opciones de filtro de máquinas cuando cambia el área de catálogo
+  useEffect(() => {
+    if (filtroAreaCatalogo && AREAS_MAQUINAS[filtroAreaCatalogo]) {
+      setFiltroMaquinasOpciones(AREAS_MAQUINAS[filtroAreaCatalogo])
+      setFiltroMaquinaCatalogo('')
+    } else {
+      setFiltroMaquinasOpciones([])
+      setFiltroMaquinaCatalogo('')
+    }
+  }, [filtroAreaCatalogo])
+
   useEffect(() => {
     cargarDatos()
   }, [])
 
   useEffect(() => {
     cargarEquipos()
-  }, [filtroArea, filtroCriticidad])
+  }, [filtroCriticidad, filtroAreaCatalogo, filtroMaquinaCatalogo])
 
   const cargarDatos = async () => {
     setLoading(true)
@@ -51,10 +84,21 @@ export const Equipos = () => {
   const cargarEquipos = async () => {
     try {
       const params = {}
-      if (filtroArea) params.area = filtroArea
+      // Para no romper nada: criticidad sigue filtrando desde backend
       if (filtroCriticidad) params.criticidad = filtroCriticidad
       const res = await equiposService.getAll(params)
-      setEquipos(res.data || [])
+      let lista = res.data || []
+
+      // Filtrar por área/máquina de catálogo (como en Solicitud de Mantenimiento)
+      if (filtroAreaCatalogo && AREAS_MAQUINAS[filtroAreaCatalogo]) {
+        const maquinasArea = AREAS_MAQUINAS[filtroAreaCatalogo]
+        lista = lista.filter((eq) => maquinasArea.includes(eq.nombre))
+      }
+      if (filtroMaquinaCatalogo) {
+        lista = lista.filter((eq) => eq.nombre === filtroMaquinaCatalogo)
+      }
+
+      setEquipos(lista)
     } catch (err) {
       setError('Error al cargar equipos')
       console.error(err)
@@ -113,6 +157,11 @@ export const Equipos = () => {
     })
     setEditingId(equipo.id)
     setShowForm(true)
+
+    // Al editar, limpiar selección de catálogo para evitar confusión
+    setAreaCatalogo('')
+    setMaquinasCatalogo([])
+    setMaquinaCatalogoSeleccionada('')
   }
 
   const handleDelete = async (id) => {
@@ -138,6 +187,10 @@ export const Equipos = () => {
     })
     setEditingId(null)
     setShowForm(false)
+
+    setAreaCatalogo('')
+    setMaquinasCatalogo([])
+    setMaquinaCatalogoSeleccionada('')
   }
 
   const criticidadLabels = {
@@ -187,16 +240,36 @@ export const Equipos = () => {
         <div className="equipos__filtros">
           <div className="equipos__filtro">
             <label className="equipos__label">
-              Área
+              Área (catálogo producción)
               <select
-                value={filtroArea}
-                onChange={(e) => setFiltroArea(e.target.value)}
+                value={filtroAreaCatalogo}
+                onChange={(e) => setFiltroAreaCatalogo(e.target.value)}
                 className="equipos__select"
               >
                 <option value="">Todas las áreas</option>
-                {estaciones.map((est) => (
-                  <option key={est.id} value={est.nombre}>
-                    {est.nombre}
+                {AREAS_LIST.map((area) => (
+                  <option key={area} value={area}>
+                    {area}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="equipos__filtro">
+            <label className="equipos__label">
+              Máquina
+              <select
+                value={filtroMaquinaCatalogo}
+                onChange={(e) => setFiltroMaquinaCatalogo(e.target.value)}
+                className="equipos__select"
+                disabled={!filtroAreaCatalogo}
+              >
+                <option value="">
+                  {filtroAreaCatalogo ? 'Todas las máquinas' : 'Primero seleccione un área'}
+                </option>
+                {filtroMaquinasOpciones.map((maq) => (
+                  <option key={maq} value={maq}>
+                    {maq}
                   </option>
                 ))}
               </select>
@@ -224,6 +297,55 @@ export const Equipos = () => {
       {showForm && (
         <Card title={editingId ? 'Editar Equipo' : 'Nuevo Equipo'}>
           <form onSubmit={handleSubmit} className="equipos__form">
+            {/* Selección por área y máquina (catálogo igual a Solicitud de Mantenimiento) */}
+            <div className="equipos__form-row">
+              <div className="equipos__form-field">
+                <label className="equipos__label">
+                  Área (catálogo producción)
+                </label>
+                <select
+                  value={areaCatalogo}
+                  onChange={(e) => setAreaCatalogo(e.target.value)}
+                  className="equipos__select"
+                  disabled={saving}
+                >
+                  <option value="">Seleccione un área</option>
+                  {AREAS_LIST.map((area) => (
+                    <option key={area} value={area}>
+                      {area}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="equipos__form-field">
+                <label className="equipos__label">
+                  Máquina (catálogo)
+                </label>
+                <select
+                  value={maquinaCatalogoSeleccionada}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setMaquinaCatalogoSeleccionada(value)
+                    // Rellenar el nombre del equipo automáticamente
+                    if (value) {
+                      setFormData((prev) => ({ ...prev, nombre: value }))
+                    }
+                  }}
+                  className="equipos__select"
+                  disabled={saving || !areaCatalogo}
+                >
+                  <option value="">
+                    {areaCatalogo ? 'Seleccione una máquina' : 'Primero seleccione un área'}
+                  </option>
+                  {maquinasCatalogo.map((maq) => (
+                    <option key={maq} value={maq}>
+                      {maq}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="equipos__form-row">
               <div className="equipos__form-field">
                 <label className="equipos__label">

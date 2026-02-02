@@ -36,7 +36,9 @@ export const mantenimientoService = {
     return api.post(`${ENDPOINT}/${id}/evidencias`, form)
   },
 
-  asignarOrden: (id, asignadoA) => api.post(`${ENDPOINT}/${id}/asignar`, { asignadoA }),
+  /** Asignar por ID de usuario o por usuario (ej: { asignadoA: 5 } o { asignadoUsuario: 'RPADILLA' }) */
+  asignarOrden: (id, payload) =>
+    api.post(`${ENDPOINT}/${id}/asignar`, typeof payload === 'object' ? payload : { asignadoA: payload }),
 
   iniciarOrden: (id) => api.post(`${ENDPOINT}/${id}/iniciar`),
 

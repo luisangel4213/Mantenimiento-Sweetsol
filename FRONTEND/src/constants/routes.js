@@ -4,9 +4,10 @@ import { ROLES } from './roles'
  * Ruta por defecto tras login o cuando se deniega acceso, según el rol.
  */
 export const ROLE_DEFAULT_PATHS = {
-  [ROLES.JEFE_MANTENIMIENTO]: '/reportes',
-  [ROLES.OPERARIO_MANTENIMIENTO]: '/ordenes',
+  [ROLES.JEFE_MANTENIMIENTO]: '/dashboard',
+  [ROLES.OPERARIO_MANTENIMIENTO]: '/dashboard',
   [ROLES.OPERARIO_PRODUCCION]: '/dashboard',
+  [ROLES.SUPER_USUARIO]: '/dashboard',
 }
 
 export const getDefaultPathForRole = (role) =>
@@ -19,15 +20,17 @@ export const getDefaultPathForRole = (role) =>
 export const ROUTE_ROLES = {
   '/': [],
   '/ordenes': [],
-  '/produccion': [ROLES.OPERARIO_PRODUCCION],
-  '/equipos': [ROLES.JEFE_MANTENIMIENTO, ROLES.OPERARIO_MANTENIMIENTO],
-  '/reportes': [ROLES.JEFE_MANTENIMIENTO],
-  '/operarios': [ROLES.JEFE_MANTENIMIENTO],
+  '/produccion': [ROLES.OPERARIO_PRODUCCION, ROLES.OPERARIO_MANTENIMIENTO, ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO],
+  '/reportes': [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO],
+  '/reportes/historial-maquina': [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO],
+  '/operarios': [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO],
+  '/usuarios': [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO],
 }
 
-/** Roles que pueden generar el informe técnico (desde orden completada). */
+/** Roles que pueden generar el informe técnico (solo órdenes en estado Proceso cerrado). */
 export const INFORME_TECNICO_ROLES = [
   ROLES.JEFE_MANTENIMIENTO,
+  ROLES.SUPER_USUARIO,
   ROLES.OPERARIO_MANTENIMIENTO,
 ]
 
@@ -39,8 +42,9 @@ export const INFORME_TECNICO_ROLES = [
 export const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard', roles: [] },
   { to: '/ordenes', label: 'Órdenes de Trabajo', icon: 'ordenes', roles: [] },
-  { to: '/produccion', label: 'Solicitud de Mantenimiento', icon: 'ordenes', roles: [ROLES.OPERARIO_PRODUCCION] },
-  { to: '/equipos', label: 'Equipos', icon: 'equipos', roles: [ROLES.JEFE_MANTENIMIENTO, ROLES.OPERARIO_MANTENIMIENTO] },
-  { to: '/operarios', label: 'Operarios', icon: 'equipos', roles: [ROLES.JEFE_MANTENIMIENTO] },
-  { to: '/reportes', label: 'Reportes', icon: 'reportes', roles: [ROLES.JEFE_MANTENIMIENTO] },
+  { to: '/produccion', label: 'Solicitud de Mantenimiento', icon: 'ordenes', roles: [ROLES.OPERARIO_PRODUCCION, ROLES.OPERARIO_MANTENIMIENTO, ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO] },
+  { to: '/operarios', label: 'Operarios', icon: 'equipos', roles: [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO] },
+  { to: '/usuarios', label: 'Administración de usuarios', icon: 'equipos', roles: [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO] },
+  { to: '/reportes', label: 'Reportes', icon: 'reportes', roles: [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO] },
+  { to: '/reportes/historial-maquina', label: 'Historial por Máquina', icon: 'reportes', roles: [ROLES.JEFE_MANTENIMIENTO, ROLES.SUPER_USUARIO] },
 ]

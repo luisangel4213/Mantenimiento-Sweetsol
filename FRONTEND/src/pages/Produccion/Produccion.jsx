@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card } from '../../components'
 import { useMantenimiento, useAuth } from '../../context'
 import { AREAS_MAQUINAS, AREAS_LIST } from '../../constants/areas'
+import { AREAS_SOLICITANTE, SOLICITANTES_BY_AREA } from '../../constants/solicitantes'
 import './Produccion.css'
 
 export const Produccion = () => {
@@ -36,9 +37,12 @@ export const Produccion = () => {
     fechaInicio: obtenerFechaActual(),
     horaInicio: obtenerHoraActual(),
     tipoM: '',
+    areaSolicitante: '',
+    solicitante: '',
   })
 
   const [maquinasFiltradas, setMaquinasFiltradas] = useState([])
+  const [solicitantesFiltrados, setSolicitantesFiltrados] = useState([])
   const [evidenciasFiles, setEvidenciasFiles] = useState([])
 
   useEffect(() => {
@@ -75,6 +79,16 @@ export const Produccion = () => {
     }
   }, [formData.area])
 
+  // Filtrar solicitantes cuando cambia el área del solicitante
+  useEffect(() => {
+    if (formData.areaSolicitante && SOLICITANTES_BY_AREA[formData.areaSolicitante]) {
+      setSolicitantesFiltrados(SOLICITANTES_BY_AREA[formData.areaSolicitante])
+      setFormData((prev) => ({ ...prev, solicitante: '' }))
+    } else {
+      setSolicitantesFiltrados([])
+    }
+  }, [formData.areaSolicitante])
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -101,6 +115,9 @@ export const Produccion = () => {
       if (formData.tipoM) {
         descripcionCompleta += `Tipo M: ${formData.tipoM}\n`
       }
+      if (formData.solicitante) {
+        descripcionCompleta += `Solicitante: ${formData.solicitante}\n`
+      }
       descripcionCompleta += '\n'
       descripcionCompleta += formData.descripcion.trim()
 
@@ -118,7 +135,7 @@ export const Produccion = () => {
 
       const ordenData = {
         equipoId: null,
-        titulo: `ORDEN DE TRABAJO Nro: ${numeroOrden} - ${formData.titulo.trim()}`,
+        titulo: `SOLICITUD DE MANTENIMIENTO Nro: ${numeroOrden} - ${formData.titulo.trim()}`,
         descripcion: descripcionCompleta,
         prioridad: formData.prioridad,
         estado: 'pendiente',
@@ -142,6 +159,8 @@ export const Produccion = () => {
         fechaInicio: obtenerFechaActual(),
         horaInicio: obtenerHoraActual(),
         tipoM: '',
+        areaSolicitante: '',
+        solicitante: '',
       })
       setEvidenciasFiles([])
       const fileInput = document.getElementById('produccion-evidencias-input')
@@ -176,7 +195,7 @@ export const Produccion = () => {
 
       {numeroOrden && (
         <div className="produccion__numero-orden">
-          <strong>ORDEN DE TRABAJO Nro: {numeroOrden}</strong>
+          <strong>SOLICITUD DE MANTENIMIENTO Nro: {numeroOrden}</strong>
         </div>
       )}
 
@@ -335,6 +354,50 @@ export const Produccion = () => {
               <option value="Locativo">Locativo</option>
               <option value="Mejora">Mejora</option>
               <option value="Preventivo">Preventivo</option>
+            </select>
+          </div>
+
+          <div className="produccion__field">
+            <label htmlFor="areaSolicitante" className="produccion__label">
+              Solicitante – Área
+            </label>
+            <select
+              id="areaSolicitante"
+              name="areaSolicitante"
+              value={formData.areaSolicitante}
+              onChange={handleInputChange}
+              className="produccion__select"
+              disabled={saving}
+            >
+              <option value="">Seleccione un área del solicitante</option>
+              {AREAS_SOLICITANTE.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="produccion__field">
+            <label htmlFor="solicitante" className="produccion__label">
+              Solicitante
+            </label>
+            <select
+              id="solicitante"
+              name="solicitante"
+              value={formData.solicitante}
+              onChange={handleInputChange}
+              className="produccion__select"
+              disabled={saving || !formData.areaSolicitante}
+            >
+              <option value="">
+                {formData.areaSolicitante ? 'Seleccione un solicitante' : 'Primero seleccione el área del solicitante'}
+              </option>
+              {solicitantesFiltrados.map((nombre) => (
+                <option key={nombre} value={nombre}>
+                  {nombre}
+                </option>
+              ))}
             </select>
           </div>
 

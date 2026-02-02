@@ -24,10 +24,10 @@ async function diagnosticarYReparar() {
     const byCodigo = Object.fromEntries(roles.map((r) => [r.codigo, r.id]))
     
     // Verificar que existan los roles necesarios
-    const rolesNecesarios = ['JEFE_MANTENIMIENTO', 'OPERARIO_MANTENIMIENTO', 'OPERARIO_PRODUCCION']
+    const rolesNecesarios = ['JEFE_MANTENIMIENTO', 'OPERARIO_MANTENIMIENTO', 'OPERARIO_PRODUCCION', 'SUPER_USUARIO']
     for (const codigo of rolesNecesarios) {
       if (!byCodigo[codigo]) {
-        console.log(`   ❌ ERROR: Falta el rol ${codigo}`)
+        console.log(`   ❌ ERROR: Falta el rol ${codigo}. Ejecute database/migrations/add_super_usuario.sql o schema.sql.`)
         process.exit(1)
       }
     }
@@ -56,22 +56,36 @@ async function diagnosticarYReparar() {
       {
         usuario: 'jefe',
         email: 'jefe@sweetsol.com',
-        nombre: 'Jefe Mantenimiento',
+        nombre: 'Coordinador MTTO',
         rolCodigo: 'JEFE_MANTENIMIENTO',
         password: '123456'
       },
       {
         usuario: 'operario1',
         email: 'op1@sweetsol.com',
-        nombre: 'Operario Mantenimiento',
+        nombre: 'Técnico MTTO',
         rolCodigo: 'OPERARIO_MANTENIMIENTO',
         password: '123456'
       },
       {
         usuario: 'produccion',
         email: 'prod@sweetsol.com',
-        nombre: 'Operario Producción',
+        nombre: 'Producción',
         rolCodigo: 'OPERARIO_PRODUCCION',
+        password: '123456'
+      },
+      {
+        usuario: 'calidad',
+        email: 'calidad@sweetsol.com',
+        nombre: 'Calidad',
+        rolCodigo: 'OPERARIO_PRODUCCION',
+        password: '123456'
+      },
+      {
+        usuario: 'superior',
+        email: 'superior@sweetsol.com',
+        nombre: 'Superior',
+        rolCodigo: 'SUPER_USUARIO',
         password: '123456'
       }
     ]
@@ -129,6 +143,7 @@ async function diagnosticarYReparar() {
 
     console.log('\n✅ Proceso completado exitosamente!')
     console.log('\n📝 Credenciales para login:')
+    console.log('   Super usuario: superior | Contraseña: 123456')
     console.log('   Usuario: jefe | Contraseña: 123456')
     console.log('   Usuario: operario1 | Contraseña: 123456')
     console.log('   Usuario: produccion | Contraseña: 123456')

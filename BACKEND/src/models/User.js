@@ -39,6 +39,23 @@ export async function findById(id) {
 }
 
 /**
+ * Busca usuario por ID sin filtrar por activo (para admin).
+ * @param {number} id
+ * @returns {Promise<{ id: number, usuario: string, email: string | null, nombre: string, role: string, activo: number } | null>}
+ */
+export async function findByIdAny(id) {
+  const [rows] = await query(
+    `SELECT u.id, u.usuario, u.email, u.nombre, r.codigo AS role, u.activo
+     FROM usuarios u
+     INNER JOIN roles r ON r.id = u.rol_id
+     WHERE u.id = ?
+     LIMIT 1`,
+    [id]
+  )
+  return rows[0] || null
+}
+
+/**
  * Obtiene usuarios por rol.
  * @param {string} roleCodigo - Código del rol (ej: 'OPERARIO_MANTENIMIENTO')
  * @returns {Promise<Array<{ id: number, usuario: string, email: string | null, nombre: string, role: string }>>}
@@ -53,6 +70,48 @@ export async function findByRole(roleCodigo) {
     [roleCodigo]
   )
   return rows
+}
+
+/**
+ * Busca un usuario por nombre de usuario y rol.
+ * @param {string} usuario - Nombre de usuario (ej: 'RPADILLA')
+ * @param {string} roleCodigo - Código del rol (ej: 'OPERARIO_MANTENIMIENTO')
+ * @returns {Promise<{ id: number, usuario: string, email: string | null, nombre: string, role: string } | null>}
+ */
+export async function findByUsuarioAndRole(usuario, roleCodigo) {
+  if (!usuario || !roleCodigo) return null
+  const [rows] = await query(
+    `SELECT u.id, u.usuario, u.email, u.nombre, r.codigo AS role
+     FROM usuarios u
+     INNER JOIN roles r ON r.id = u.rol_id
+     WHERE u.usuario = ? AND r.codigo = ?
+     LIMIT 1`,
+    [String(usuario).trim(), roleCodigo]
+  )
+  return rows[0] || null
+}
+
+/**
+ * Busca un usuario por nombre completo y rol (para asociar operario por nombre).
+ * Comparación sin distinguir mayúsculas/minúsculas y sin espacios extra al inicio/final.
+ * @param {string} nombre - Nombre completo (ej: 'Luis Ángel Serna')
+ * @param {string} roleCodigo - Código del rol (ej: 'OPERARIO_MANTENIMIENTO')
+ * @returns {Promise<{ id: number, usuario: string, email: string | null, nombre: string, role: string } | null>}
+ */
+export async function findByNombreAndRole(nombre, roleCodigo) {
+  if (!nombre || !roleCodigo) return null
+  const normalized = String(nombre).trim()
+  if (!normalized) return null
+  const [rows] = await query(
+    `SELECT u.id, u.usuario, u.email, u.nombre, r.codigo AS role
+     FROM usuarios u
+     INNER JOIN roles r ON r.id = u.rol_id
+     WHERE r.codigo = ? AND u.activo = 1
+       AND LOWER(TRIM(u.nombre)) = LOWER(?)
+     LIMIT 1`,
+    [roleCodigo, normalized]
+  )
+  return rows[0] || null
 }
 
 /**
@@ -114,4 +173,57 @@ export async function listOperarios() {
      ORDER BY u.nombre`
   )
   return rows
+}
+
+/**
+ * Lista todos los usuarios (todos los roles). Para uso del super usuario.
+ * @returns {Promise<Array<{ id: number, usuario: string, email: string | null, nombre: string, role: string, activo: number }>>}
+ */
+export async function listAll() {
+  const [rows] = await query(
+    `SELECT u.id, u.usuario, u.email, u.nombre, r.codigo AS role, u.activo
+     FROM usuarios u
+     INNER JOIN roles r ON r.id = u.rol_id
+     ORDER BY r.codigo, u.nombre`
+  )
+  return rows
+}
+
+/**
+ * Actualiza nombre, usuario y/o contraseña de un usuario.
+ * @param {number} id
+ * @param {Object} data - { nombre?: string, usuario?: string, password?: string }
+ */
+export async function updateById(id, data) {
+  const updates = []
+  const params = []
+
+  if (data.nombre != null) {
+    updates.push('nombre = ?')
+    params.push(data.nombre)
+  }
+  if (data.usuario != null) {
+    updates.push('usuario = ?')
+    params.push(data.usuario)
+  }
+  if (data.password != null) {
+    updates.push('password = ?')
+    params.push(data.password)
+  }
+
+  if (updates.length === 0) return
+
+  params.push(id)
+  await query(
+    `UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`,
+    params
+  )
+}
+
+/**
+ * Desactiva un usuario (soft delete). No elimina para preservar integridad referencial.
+ * @param {number} id
+ */
+export async function deactivateById(id) {
+  await query('UPDATE usuarios SET activo = 0 WHERE id = ?', [id])
 }

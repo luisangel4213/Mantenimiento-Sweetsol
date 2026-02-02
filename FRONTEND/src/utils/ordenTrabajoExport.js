@@ -1,17 +1,179 @@
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 
+// ——— Constantes de diseño corporativo (Orden de Trabajo) ———
+const MARGIN = 14
+const PAGE_WIDTH = 210
+const PAGE_HEIGHT = 297
+const HEADER_HEIGHT = 30
+const BODY_START_Y = HEADER_HEIGHT + 6
+const FOOTER_Y = 279
+const BODY_MAX_Y = FOOTER_Y - 12
+const LOGO_WIDTH = 24
+const LOGO_HEIGHT = 10
+const FONT_SIZE = 11
+const ROW_HEIGHT_COMPACT = 5
+const NOMBRE_EMPRESA = 'SWEETSOL'
+const TITULO_ORDEN = 'SOLICITUD DE MANTENIMIENTO'
+const NOMBRE_SISTEMA = 'Sistema de Mantenimiento SweetSol'
+
 /**
- * Genera y descarga el reporte completo de Orden de Trabajo en PDF.
- * Formato similar al documento físico de orden de mantenimiento.
- * @param {Object} orden - Orden completa con todos los datos
- * @param {Object} datosReporte - Datos adicionales del reporte (opcional si orden.datosReporte existe)
- * @param {string|null} firmaEjecutante - Base64 de la firma del ejecutante (opcional si orden.datosReporte.firmas existe)
- * @param {string|null} firmaSolicitante - Base64 de la firma del solicitante (opcional si orden.datosReporte.firmas existe)
- * @param {string|null} firmaEncargado - Base64 de la firma del encargado (opcional si orden.datosReporte.firmas existe)
+ * Carga el logo desde /logo-sweetsol.png y devuelve base64 o null.
+ * @returns {Promise<string|null>}
  */
-export function exportarOrdenTrabajoPDF(orden, datosReporte, firmaEjecutante, firmaSolicitante, firmaEncargado) {
-  // Si la orden ya tiene datosReporte guardado, usarlo en lugar de los parámetros
+function cargarLogoBase64() {
+  return fetch('/logo-sweetsol.png')
+    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error('Logo no encontrado'))))
+    .then(
+      (blob) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+    )
+    .catch(() => null)
+}
+
+/**
+ * Dibuja el encabezado institucional en cada página del PDF de Orden de Trabajo.
+ * Logo (izquierda), SWEETSOL, título centrado, OT N°, tipo, fecha impresión.
+ */
+function drawHeaderOrdenTrabajo(doc, opts) {
+  const { logoBase64, numeroOrden, tipoOrden, fechaImpresion } = opts
+  doc.setDrawColor(220, 220, 220)
+  doc.setFillColor(252, 252, 252)
+  doc.rect(0, 0, PAGE_WIDTH, HEADER_HEIGHT, 'FD')
+  doc.setDrawColor(180, 180, 180)
+  doc.line(MARGIN, HEADER_HEIGHT, PAGE_WIDTH - MARGIN, HEADER_HEIGHT)
+
+  let xRight = MARGIN
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', MARGIN, 6, LOGO_WIDTH, LOGO_HEIGHT)
+      xRight = MARGIN + LOGO_WIDTH + 6
+    } catch (e) {
+      // ignorar si falla la imagen
+    }
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(FONT_SIZE)
+  doc.setTextColor(40, 40, 40)
+  doc.text(NOMBRE_EMPRESA, xRight, 10)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(FONT_SIZE)
+  doc.setTextColor(0, 0, 0)
+  doc.text(TITULO_ORDEN, PAGE_WIDTH / 2, 18, { align: 'center' })
+  doc.setFontSize(FONT_SIZE)
+  doc.setTextColor(60, 60, 60)
+  const linea3 = `OT N° ${numeroOrden}  |  Tipo: ${tipoOrden || 'Orden de mantenimiento'}  |  Fecha impresión: ${fechaImpresion}`
+  doc.text(linea3, PAGE_WIDTH / 2, 25, { align: 'center' })
+  doc.setTextColor(0, 0, 0)
+}
+
+/**
+ * Dibuja el pie de página (Página X de Y, fecha/hora, sistema).
+ */
+function drawFooterOrdenTrabajo(doc, pageNumber, pageCount, fechaHoraGeneracion) {
+  doc.setDrawColor(220, 220, 220)
+  doc.line(MARGIN, FOOTER_Y - 2, PAGE_WIDTH - MARGIN, FOOTER_Y - 2)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(FONT_SIZE)
+  doc.setTextColor(100, 100, 100)
+  doc.text(
+    `Página ${pageNumber} de ${pageCount}  |  ${fechaHoraGeneracion}  |  ${NOMBRE_SISTEMA}`,
+    PAGE_WIDTH / 2,
+    FOOTER_Y + 4,
+    { align: 'center' }
+  )
+  doc.setTextColor(0, 0, 0)
+}
+
+/**
+ * Si no hay espacio suficiente, añade nueva página y dibuja encabezado.
+ * @returns {number} Nueva posición y
+ */
+function ensureSpace(doc, y, headerOpts) {
+  if (y > BODY_MAX_Y) {
+    doc.addPage()
+    drawHeaderOrdenTrabajo(doc, headerOpts)
+    return BODY_START_Y
+  }
+  return y
+}
+
+/** Dibuja solo el borde exterior de la última tabla (sin líneas internas). */
+function drawTableOuterBorder(doc, tableStartY) {
+  const t = doc.lastAutoTable
+  if (!t || t.finalY == null) return
+  const startY = tableStartY != null ? Number(tableStartY) : Number(t.startY)
+  const endY = Number(t.finalY)
+  const y = startY
+  const h = endY - startY
+  const w = PAGE_WIDTH - 2 * MARGIN
+  if (!Number.isFinite(y) || !Number.isFinite(h) || h <= 0 || !Number.isFinite(w) || w <= 0) return
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.2)
+  doc.rect(MARGIN, y, w, h)
+}
+
+/** Extrae área, máquina, tipo M, solicitante y descripción real del texto de descripción. */
+function extraerInfoDescripcion(descripcion) {
+  if (!descripcion) return { area: '', maquina: '', tipoM: '', descripcionReal: '', solicitanteNombre: '' }
+  const lines = descripcion.split('\n')
+  let area = ''
+  let maquina = ''
+  let tipoM = ''
+  let solicitanteNombre = ''
+  let descripcionReal = ''
+  let indiceFinMetadatos = -1
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim()
+    if (t.startsWith('Área:')) area = t.replace('Área:', '').trim()
+    else if (t.startsWith('Máquina:')) maquina = t.replace('Máquina:', '').trim()
+    else if (t.startsWith('Tipo M:')) tipoM = t.replace('Tipo M:', '').trim()
+    else if (t.startsWith('Solicitante:')) solicitanteNombre = t.replace('Solicitante:', '').trim()
+    else if (t.startsWith('Datos:')) {
+      if (i + 1 < lines.length && lines[i + 1].trim() === '') {
+        indiceFinMetadatos = i + 1
+        break
+      }
+    }
+  }
+  if (indiceFinMetadatos === -1) {
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().startsWith('Solicitante:') && i + 1 < lines.length && lines[i + 1].trim() === '') {
+        indiceFinMetadatos = i + 1
+        break
+      }
+    }
+  }
+  if (indiceFinMetadatos >= 0 && indiceFinMetadatos + 1 < lines.length) {
+    descripcionReal = lines.slice(indiceFinMetadatos + 1).map((l) => l.trim()).filter(Boolean).join('\n').trim()
+  }
+  return { area, maquina, tipoM, descripcionReal, solicitanteNombre }
+}
+
+/**
+ * Genera y descarga el PDF de Orden de Trabajo (Orden de Mantenimiento Final).
+ * Diseño corporativo: encabezado con logo en todas las páginas, tablas estructuradas, pie de página.
+ * @param {Object} orden - Orden completa
+ * @param {Object} [datosReporte] - Datos del reporte (opcional si orden.datosReporte existe)
+ * @param {string|null} [firmaEjecutante] - Base64 firma ejecutante
+ * @param {string|null} [firmaSolicitante] - Base64 firma cliente interno
+ * @param {string|null} [firmaEncargado] - Base64 firma encargado
+ * @param {{ logoBase64?: string }} [opciones] - logoBase64 opcional para no cargar desde /logo-sweetsol.png
+ */
+export async function exportarOrdenTrabajoPDF(
+  orden,
+  datosReporte,
+  firmaEjecutante,
+  firmaSolicitante,
+  firmaEncargado,
+  opciones = {}
+) {
   if (orden.datosReporte) {
     datosReporte = orden.datosReporte
     if (datosReporte.firmas) {
@@ -20,629 +182,411 @@ export function exportarOrdenTrabajoPDF(orden, datosReporte, firmaEjecutante, fi
       firmaEncargado = datosReporte.firmas.encargado || firmaEncargado
     }
   }
-  
-  // Si no hay datosReporte, crear uno vacío para evitar errores
-  if (!datosReporte) {
-    datosReporte = {}
-  }
-  const doc = new jsPDF('p', 'mm', 'a4')
-  let y = 15
+  if (!datosReporte) datosReporte = {}
 
-  // Extraer número de orden del título
+  let logoBase64 = opciones.logoBase64 || null
+  if (!logoBase64) logoBase64 = await cargarLogoBase64()
+
   const numeroMatch = orden.titulo?.match(/Nro:\s*(\d+)/i)
-  const numeroOrden = numeroMatch ? numeroMatch[1] : orden.id
+  const numeroOrdenRaw = numeroMatch ? numeroMatch[1] : String(orden.id || '')
+  const numeroOrden = String(numeroOrdenRaw).padStart(5, '0')
+  const tipoOrden =
+    datosReporte.tipoOrden ||
+    (datosReporte.tipoMantenimiento && datosReporte.tipoMantenimiento.charAt(0).toUpperCase() + datosReporte.tipoMantenimiento.slice(1)) ||
+    'Orden de mantenimiento'
+  const fechaImpresion = new Date().toLocaleDateString('es-CO')
+  const fechaHoraGeneracion = `${new Date().toLocaleDateString('es-CO')} ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`
 
-  // ENCABEZADO
-  doc.setFontSize(14)
-  doc.setFont(undefined, 'bold')
-  doc.text('ORDEN DE TRABAJO', 105, y, { align: 'center' })
-  y += 6
-  doc.setFontSize(12)
-  doc.text(`Nro: ${numeroOrden}`, 105, y, { align: 'center' })
+  const headerOpts = { logoBase64, numeroOrden, tipoOrden, fechaImpresion }
+
+  const doc = new jsPDF('p', 'mm', 'a4')
+  doc.setFont('helvetica')
+  doc.setFontSize(FONT_SIZE)
+
+  let y = BODY_START_Y
+
+  const infoDesc = extraerInfoDescripcion(orden.descripcion || '')
+  const area = infoDesc.area || '—'
+  const maquina = infoDesc.maquina || orden.equipoNombre || '—'
+  const tipoM = infoDesc.tipoM || tipoOrden || 'Correctivo'
+  const solicitanteNombre = infoDesc.solicitanteNombre || '—'
+  const descripcionTrabajo = infoDesc.descripcionReal || '—'
+
+  const prioridadLabel = { baja: 'Baja', media: 'Media', alta: 'Alta' }
+  const prioridad = prioridadLabel[orden.prioridad] || orden.prioridad || '—'
+  const fechaSolicitud = orden.createdAt ? new Date(orden.createdAt).toLocaleDateString('es-CO') : new Date().toLocaleDateString('es-CO')
+  const fechaInicioEst = orden.fechaInicio ? new Date(orden.fechaInicio).toLocaleDateString('es-CO') : '—'
+  const fechaFinEst = orden.fechaCierre ? new Date(orden.fechaCierre).toLocaleDateString('es-CO') : '—'
+
+  drawHeaderOrdenTrabajo(doc, headerOpts)
+  y = BODY_START_Y
+
+  // ——— 1. Datos Generales (tabla Campo | Información) ———
+  doc.setFontSize(FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('1. Datos Generales', MARGIN, y)
   y += 5
-  doc.setFontSize(10)
-  doc.setFont(undefined, 'normal')
-  doc.text(`Tipo de Orden: ${datosReporte.tipoOrden || 'Orden de mantenimiento'}`, 105, y, { align: 'center' })
-  y += 8
 
-  // SECCIÓN 1: FECHAS
-  doc.setFontSize(11)
-  doc.setFont(undefined, 'bold')
-  doc.text('1. FECHAS', 14, y)
-  y += 6
-  doc.setFontSize(9)
-  doc.setFont(undefined, 'normal')
-
-  const prioridadLabel = {
-    baja: 'Baja',
-    media: 'Media',
-    alta: 'Alta',
-  }
-  doc.text(`Prioridad: ${prioridadLabel[orden.prioridad] || orden.prioridad}`, 14, y)
-  doc.text(`Fecha Impresión: ${new Date().toLocaleDateString('es-CO')}`, 105, y)
-  y += 5
-  doc.text(`Fecha Inicio: ${orden.fechaInicio ? new Date(orden.fechaInicio).toLocaleDateString('es-CO') : '—'}`, 14, y)
-  doc.text(`Fecha Fin: ${orden.fechaCierre ? new Date(orden.fechaCierre).toLocaleDateString('es-CO') : '—'}`, 105, y)
-  y += 8
-
-  // SECCIÓN 2: DATOS DEL OBJETO
-  doc.setFontSize(11)
-  doc.setFont(undefined, 'bold')
-  doc.text('2. DATOS DEL OBJETO', 14, y)
-  y += 6
-  doc.setFontSize(9)
-  doc.setFont(undefined, 'normal')
-
-  // Extraer área y máquina de la descripción
-  const descLines = orden.descripcion?.split('\n') || []
-  let area = ''
-  let maquina = ''
-  let ubicacionTecnica = datosReporte.ubicacionTecnica || '—'
-  let emplazamiento = datosReporte.emplazamiento || '—'
-
-  descLines.forEach((line) => {
-    if (line.startsWith('Área:')) area = line.replace('Área:', '').trim()
-    if (line.startsWith('Máquina:')) maquina = line.replace('Máquina:', '').trim()
+  const anchoCampo = 52
+  const anchoInfo = PAGE_WIDTH - 2 * MARGIN - anchoCampo
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [['Campo', 'Información']],
+    body: [
+      ['Fecha solicitud', fechaSolicitud],
+      ['Fecha inicio (estimada)', fechaInicioEst],
+      ['Fecha fin (estimada)', fechaFinEst],
+      ['Prioridad', prioridad],
+      ['Área', area],
+      ['Tipo de mantenimiento', tipoM],
+    ],
+    theme: 'plain',
+    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
+    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: anchoCampo, fontStyle: 'bold' }, 1: { cellWidth: anchoInfo } },
   })
-
-  doc.text(`Cod Equipo: ${orden.equipoId || '—'}`, 14, y)
-  doc.text(`Descrip Equip: ${maquina || orden.equipoNombre || '—'}`, 80, y)
-  y += 5
-  doc.text(`Emplazamiento: ${emplazamiento}`, 14, y)
-  doc.text(`Área: ${area || '—'}`, 80, y)
-  y += 5
-  doc.text(`Ubicación técnica: ${ubicacionTecnica}`, 14, y)
-  doc.text(`Grupo planificador: ${datosReporte.grupoPlanificador || 'Producción'}`, 80, y)
-  y += 5
-  doc.text(`Resp. Pto Triba: ${datosReporte.responsablePtoTriba || 'Mantenimiento'}`, 14, y)
-  doc.text(`Responsable 1: ${orden.asignadoANombre || datosReporte.responsable1 || '—'}`, 80, y)
-  y += 8
-
-  // DATOS DE CABECERA
-  doc.setFontSize(10)
-  doc.setFont(undefined, 'bold')
-  doc.text(orden.titulo || 'Orden de mantenimiento', 14, y)
-  y += 8
-
-  // SECCIÓN 4: OPERACIONES PLANEADAS
-  if (datosReporte.operacionesPlaneadas && datosReporte.operacionesPlaneadas.length > 0) {
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
-    doc.text('4. OPERACIONES PLANEADAS', 14, y)
-    y += 6
-
-    const opsData = datosReporte.operacionesPlaneadas.map((op, idx) => [
-      idx + 1,
-      op.puestoTrabajo || '—',
-      op.descripcion || '—',
-      op.cantPersonas || '—',
-      op.horasTrabajo || '—',
-      op.horaInicio || '—',
-      op.horaFin || '—',
-      op.horasReales || '—',
-      op.ejecuto ? '✓' : '',
-    ])
-
-    autoTable(doc, {
-      startY: y,
-      head: [['Item', 'Puesto Trabajo', 'Descripción', 'Cant. Personas', 'Horas Trabajo', 'Hora Inicio', 'Hora Fin', 'Horas Reales', 'Ejecutó']],
-      body: opsData,
-      headStyles: { fontSize: 7, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 7 },
-      columnStyles: {
-        0: { cellWidth: 12 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 20 },
-        8: { cellWidth: 15 },
-      },
-      margin: { left: 14, right: 14 },
-    })
-    y = doc.lastAutoTable.finalY + 5
-  } else {
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
-    doc.text('4. OPERACIONES PLANEADAS', 14, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-    doc.text('No hay operaciones planeadas registradas.', 14, y)
-    y += 8
-  }
-
-  // SECCIÓN 5: OPERACIONES EJECUTADAS NO PLANEADAS
-  if (datosReporte.operacionesNoPlaneadas && datosReporte.operacionesNoPlaneadas.length > 0) {
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
-    doc.text('5. OP EJECUTADAS NO PLANEADAS', 14, y)
-    y += 6
-
-    const opsNoPlaneadasData = datosReporte.operacionesNoPlaneadas.map((op, idx) => [
-      idx + 1,
-      op.descripcion || '—',
-      op.horaInicio || '—',
-      op.horaFin || '—',
-      op.horasReales || '—',
-      op.ejecuto ? '✓' : '',
-    ])
-
-    autoTable(doc, {
-      startY: y,
-      head: [['Item', 'Descripción', 'Hora I', 'Hora F', 'Horas R', 'Ejecutó']],
-      body: opsNoPlaneadasData,
-      headStyles: { fontSize: 7, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 7 },
-      margin: { left: 14, right: 14 },
-    })
-    y = doc.lastAutoTable.finalY + 5
-  } else {
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
-    doc.text('5. OP EJECUTADAS NO PLANEADAS', 14, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-    doc.text('No hay operaciones no planeadas registradas.', 14, y)
-    y += 8
-  }
-
-  // SECCIÓN 6: REPUESTOS
-  if (datosReporte.repuestos && datosReporte.repuestos.length > 0) {
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
-    doc.text('6. REPUESTOS', 14, y)
-    y += 6
-
-    const repuestosData = datosReporte.repuestos.map((rep, idx) => [
-      idx + 1,
-      rep.codigo || '—',
-      rep.descripcion || '—',
-      rep.cantidad || '—',
-      rep.tipoPosicion || '—',
-      rep.documento || '—',
-    ])
-
-    autoTable(doc, {
-      startY: y,
-      head: [['Item', 'Código', 'Descripción', 'Cant.', 'Tipo Posición', 'Documento']],
-      body: repuestosData,
-      headStyles: { fontSize: 7, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 7 },
-      margin: { left: 14, right: 14 },
-    })
-    y = doc.lastAutoTable.finalY + 5
-  } else {
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
-    doc.text('6. REPUESTOS', 14, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-    doc.text('No hay repuestos registrados.', 14, y)
-    y += 8
-  }
-
-  // SECCIÓN 7: OBSERVACIONES
-  doc.setFontSize(11)
-  doc.setFont(undefined, 'bold')
-  doc.text('7. OBSERVACIONES', 14, y)
+  drawTableOuterBorder(doc, y)
+  y = doc.lastAutoTable.finalY + 6
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(FONT_SIZE)
+  doc.setTextColor(80, 80, 80)
+  doc.text('Las fechas de inicio y fin son estimadas, no definitivas.', MARGIN, y)
+  doc.setTextColor(0, 0, 0)
   y += 6
-  doc.setFontSize(9)
-  doc.setFont(undefined, 'normal')
-  const observaciones = datosReporte.observaciones || orden.trabajoRealizado || orden.descripcion || '—'
-  const obsLines = doc.splitTextToSize(observaciones, 180)
-  doc.text(obsLines, 14, y)
-  y += obsLines.length * 4 + 8
+  y = ensureSpace(doc, y, headerOpts)
 
-  // SECCIÓN 8: FIRMAS - Diseño en tres columnas horizontales
-  doc.setFontSize(11)
-  doc.setFont(undefined, 'bold')
-  doc.text('8. FIRMAS', 14, y)
-  y += 6 // Reducido de 8 a 6 para acercar las firmas
+  // ——— 3. Operaciones Planeadas ———
+  doc.setFontSize(FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('3. Operaciones Planeadas', MARGIN, y)
+  y += 5
 
-  // Verificar si necesitamos nueva página (solo si realmente no cabe)
-  if (y > 220) {
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(FONT_SIZE)
+  doc.text(`Área: ${area}`, MARGIN, y)
+  y += 5
+  doc.text(`Máquina: ${maquina}`, MARGIN, y)
+  y += 5
+  doc.text(`Tipo M: ${tipoM}`, MARGIN, y)
+  y += 5
+  doc.text(`Solicitante: ${solicitanteNombre}`, MARGIN, y)
+  y += 6
+  doc.setFont('helvetica', 'bold')
+  doc.text('Descripción del trabajo:', MARGIN, y)
+  y += 5
+  doc.setFont('helvetica', 'normal')
+  const descTrabajoLines = doc.splitTextToSize(descripcionTrabajo, PAGE_WIDTH - 2 * MARGIN - 4)
+  doc.text(descTrabajoLines, MARGIN, y)
+  y += Math.max(descTrabajoLines.length * 5, 8) + 6
+  y = ensureSpace(doc, y, headerOpts)
+
+  // Descripción adicional (antes de la tabla)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(FONT_SIZE)
+  doc.text('Descripción adicional (Instrucciones del Jefe de Mantenimiento)', MARGIN, y)
+  y += 5
+  doc.setFont('helvetica', 'normal')
+  const descAdicional = (datosReporte.descripcionAdicional || '').trim()
+  if (descAdicional) {
+    const lineasDescAd = doc.splitTextToSize(descAdicional, PAGE_WIDTH - 2 * MARGIN - 4)
+    doc.text(lineasDescAd, MARGIN, y)
+    y += lineasDescAd.length * 5 + 4
+  }
+  const lineHeightManual = 5
+  const numLineasDescAd = 2
+  for (let i = 0; i < numLineasDescAd; i++) {
+    doc.setDrawColor(180, 180, 180)
+    doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y)
+    y += lineHeightManual
+  }
+  y += 6
+  y = ensureSpace(doc, y, headerOpts)
+
+  // Tabla de actividades planeadas (solo borde exterior, sin líneas internas)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(FONT_SIZE)
+  doc.text('Tabla de actividades planeadas', MARGIN, y)
+  y += 5
+  doc.setFont('helvetica', 'normal')
+  const opsPlaneadas = datosReporte.operacionesPlaneadas && datosReporte.operacionesPlaneadas.length > 0
+    ? datosReporte.operacionesPlaneadas
+    : [{ descripcion: '', horaInicio: '', horaFin: '', horasReales: '' }]
+  const opsData = opsPlaneadas.map((op, idx) => [
+    idx + 1,
+    (op.descripcion || op.puestoTrabajo || '').replace(/\n/g, ' ').trim() || '',
+    op.horaInicio ? new Date(`2000-01-01T${op.horaInicio}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+    op.horaFin ? new Date(`2000-01-01T${op.horaFin}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+    op.horasReales || '',
+  ])
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [['Ítem', 'Descripción de la actividad', 'Fecha inicio', 'Fecha fin', 'Horas reales']],
+    body: opsData.length ? opsData : [[1, '', '', '', '']],
+    theme: 'plain',
+    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 2 },
+    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 2 },
+    columnStyles: {
+      0: { cellWidth: 10 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 24 },
+      4: { cellWidth: 24 },
+    },
+  })
+  drawTableOuterBorder(doc, y)
+  y = doc.lastAutoTable.finalY + 6
+  y = ensureSpace(doc, y, headerOpts)
+
+  // ——— 4. Operaciones ejecutadas no planeadas (solo borde exterior, celdas vacías para escritura manual) ———
+  doc.setFontSize(FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('4. Operaciones Ejecutadas No Planeadas', MARGIN, y)
+  y += 5
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [['Ítem', 'Descripción (espacio para escritura manual)']],
+    body: [
+      [1, ''],
+      ['', ''],
+      ['', ''],
+      ['', ''],
+    ],
+    theme: 'plain',
+    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
+    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 'auto' } },
+  })
+  drawTableOuterBorder(doc, y)
+  y = doc.lastAutoTable.finalY + 6
+  y = ensureSpace(doc, y, headerOpts)
+
+  // ——— 6. Observaciones Técnicas (4 renglones vacíos, solo borde exterior) ———
+  doc.setFontSize(FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('6. Observaciones Técnicas', MARGIN, y)
+  y += 5
+
+  const obsLineHeight = 6
+  const obsHeight = 4 * obsLineHeight + 6
+  if (y + obsHeight > BODY_MAX_Y) {
     doc.addPage()
-    y = 15
+    drawHeaderOrdenTrabajo(doc, headerOpts)
+    y = BODY_START_Y
+  }
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.2)
+  doc.rect(MARGIN, y, PAGE_WIDTH - 2 * MARGIN, obsHeight)
+  for (let i = 1; i <= 4; i++) {
+    doc.line(MARGIN, y + i * obsLineHeight, PAGE_WIDTH - MARGIN, y + i * obsLineHeight)
+  }
+  y += obsHeight + 6
+  y = ensureSpace(doc, y, headerOpts)
+
+  // ——— 7. Firmas (solo borde exterior) ———
+  doc.setFontSize(FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('7. Firmas', MARGIN, y)
+  y += 5
+
+  if (y + 50 > BODY_MAX_Y) {
+    doc.addPage()
+    drawHeaderOrdenTrabajo(doc, headerOpts)
+    y = BODY_START_Y
   }
 
-  const anchoColumna = 58 // Ancho de cada columna de firma
-  const espacioEntreColumnas = 2 // Espacio entre columnas
-  const inicioCol1 = 14
-  const inicioCol2 = inicioCol1 + anchoColumna + espacioEntreColumnas
-  const inicioCol3 = inicioCol2 + anchoColumna + espacioEntreColumnas
-  const alturaFirma = 18 // Reducido de 25 a 18 para hacer las firmas más pequeñas
-  const alturaTotal = 35 // Reducido de 45 a 35 para optimizar espacio
+  const ejecutanteNombre = datosReporte.ejecutanteNombre || orden.asignadoANombre || ''
+  const ejecutanteFecha = datosReporte.ejecutanteFecha || ''
+  const solicitanteFecha = datosReporte.solicitanteFecha || ''
+  const encargadoFecha = datosReporte.encargadoFecha || ''
+  const nombreSolicitante = datosReporte.solicitanteNombre || solicitanteNombre || ''
+  const encargadoNombre = datosReporte.encargadoNombre || ''
 
-  // Extraer solicitante de la descripción
-  let solicitanteNombre = '—'
-  descLines.forEach((line) => {
-    if (line.startsWith('Solicitante:')) {
-      solicitanteNombre = line.replace('Solicitante:', '').trim()
-    }
+  const colRol = 42
+  const colNombre = 50
+  const colFecha = 32
+  const colFirma = PAGE_WIDTH - 2 * MARGIN - colRol - colNombre - colFecha
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [['Rol', 'Nombre', 'Fecha (opcional)', 'Firma']],
+    body: [
+      ['Ejecutante', ejecutanteNombre, ejecutanteFecha, ''],
+      ['Cliente interno', nombreSolicitante, solicitanteFecha, ''],
+      ['Encargado de mantenimiento', encargadoNombre, encargadoFecha, ''],
+    ],
+    theme: 'plain',
+    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
+    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3, minCellHeight: 14 },
+    columnStyles: {
+      0: { cellWidth: colRol, fontStyle: 'bold' },
+      1: { cellWidth: colNombre },
+      2: { cellWidth: colFecha },
+      3: { cellWidth: colFirma },
+    },
   })
+  drawTableOuterBorder(doc, y)
 
-  const yInicial = y
-
-  // COLUMNA 1: Ejecutante
-  doc.setFontSize(9)
-  doc.setFont(undefined, 'bold')
-  doc.text('Ejecutante', inicioCol1, y)
-  y += 4 // Reducido de 5 a 4
-  doc.setFont(undefined, 'normal')
-  doc.setFontSize(8)
-  doc.text(`Nombre: ${datosReporte.ejecutanteNombre || orden.asignadoANombre || '—'}`, inicioCol1, y)
-  y += 3.5 // Reducido de 4 a 3.5
-  doc.text(`Fecha: ${datosReporte.ejecutanteFecha || new Date().toLocaleDateString('es-CO')}`, inicioCol1, y)
-  y += 4 // Reducido de 5 a 4
-  
-  // Dibujar rectángulo para la firma
-  doc.setDrawColor(200, 200, 200)
-  doc.setLineWidth(0.5)
-  doc.rect(inicioCol1, y, anchoColumna - 2, alturaFirma)
-  
-  // Agregar la imagen de la firma si existe
-  if (firmaEjecutante) {
-    try {
-      doc.addImage(firmaEjecutante, 'PNG', inicioCol1 + 1, y + 1, anchoColumna - 4, alturaFirma - 2)
-    } catch (e) {
-      // Si falla, dibujar una línea como placeholder
-      doc.setDrawColor(0, 0, 0)
-      doc.setLineWidth(0.5)
-      doc.line(inicioCol1 + 5, y + alturaFirma / 2, inicioCol1 + anchoColumna - 7, y + alturaFirma / 2)
-    }
-  } else {
-    // Dibujar línea para firma manual
-    doc.setDrawColor(0, 0, 0)
-    doc.setLineWidth(0.5)
-    doc.line(inicioCol1 + 5, y + alturaFirma / 2, inicioCol1 + anchoColumna - 7, y + alturaFirma / 2)
+  // Pie de página en todas las páginas
+  const totalPages = doc.internal.getNumberOfPages()
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p)
+    drawFooterOrdenTrabajo(doc, p, totalPages, fechaHoraGeneracion)
   }
 
-  // COLUMNA 2: Cliente interno (Solicitante)
-  y = yInicial
-  doc.setFontSize(9)
-  doc.setFont(undefined, 'bold')
-  doc.text('Cliente interno (solicitante)', inicioCol2, y)
-  y += 4 // Reducido de 5 a 4
-  doc.setFont(undefined, 'normal')
-  doc.setFontSize(8)
-  doc.text(`Nombre: ${datosReporte.solicitanteNombre || solicitanteNombre}`, inicioCol2, y)
-  y += 3.5 // Reducido de 4 a 3.5
-  doc.text(`Fecha: ${datosReporte.solicitanteFecha || new Date().toLocaleDateString('es-CO')}`, inicioCol2, y)
-  y += 4 // Reducido de 5 a 4
-  
-  // Dibujar rectángulo para la firma
-  doc.setDrawColor(200, 200, 200)
-  doc.setLineWidth(0.5)
-  doc.rect(inicioCol2, y, anchoColumna - 2, alturaFirma)
-  
-  // Agregar la imagen de la firma si existe
-  if (firmaSolicitante) {
-    try {
-      doc.addImage(firmaSolicitante, 'PNG', inicioCol2 + 1, y + 1, anchoColumna - 4, alturaFirma - 2)
-    } catch (e) {
-      // Si falla, dibujar una línea como placeholder
-      doc.setDrawColor(0, 0, 0)
-      doc.setLineWidth(0.5)
-      doc.line(inicioCol2 + 5, y + alturaFirma / 2, inicioCol2 + anchoColumna - 7, y + alturaFirma / 2)
-    }
-  } else {
-    // Dibujar línea para firma manual
-    doc.setDrawColor(0, 0, 0)
-    doc.setLineWidth(0.5)
-    doc.line(inicioCol2 + 5, y + alturaFirma / 2, inicioCol2 + anchoColumna - 7, y + alturaFirma / 2)
+  // Descarga por blob + enlace para mayor compatibilidad (evita bloqueos de doc.save en algunos navegadores)
+  const nombreArchivo = `orden-trabajo-${numeroOrden}.pdf`
+  try {
+    const blob = doc.output('blob')
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nombreArchivo
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    doc.save(nombreArchivo)
   }
+}
 
-  // COLUMNA 3: Firma Encargado Mantenimiento
-  y = yInicial
-  doc.setFontSize(9)
-  doc.setFont(undefined, 'bold')
-  doc.text('Firma Encargado Mantenimiento', inicioCol3, y)
-  y += 4 // Reducido de 5 a 4
-  doc.setFont(undefined, 'normal')
-  doc.setFontSize(8)
-  doc.text(`Fecha: ${datosReporte.encargadoFecha || new Date().toLocaleDateString('es-CO')}`, inicioCol3, y)
-  y += 7.5 // Reducido de 9 a 7.5 (menos espacio porque no hay nombre)
-  
-  // Dibujar rectángulo para la firma
+// ——— Reporte masivo (constantes y funciones existentes) ———
+const ESTADO_LABEL = {
+  pendiente: 'Pendiente',
+  en_progreso: 'En progreso',
+  completada: 'Completada',
+  proceso_cerrado: 'Proceso Cerrado',
+  cancelada: 'Cancelada',
+}
+const NOMBRE_EMPRESA_MASIVO = 'Sweetsol'
+const NOMBRE_SISTEMA_MASIVO = 'Sweetsol Mantenimiento'
+const TABLE_START_Y = 42
+const LOGO_WIDTH_M = 22
+const LOGO_HEIGHT_M = 10
+const HEADER_HEIGHT_M = 26
+
+function dibujarEncabezadoMasivo(doc, opts) {
+  const { logoBase64, fechaGeneracion, usuarioGenera } = opts
   doc.setDrawColor(200, 200, 200)
-  doc.setLineWidth(0.5)
-  doc.rect(inicioCol3, y, anchoColumna - 2, alturaFirma)
-  
-  // Agregar la imagen de la firma si existe
-  if (firmaEncargado) {
+  doc.setFillColor(248, 248, 248)
+  doc.rect(0, 0, 210, HEADER_HEIGHT_M, 'FD')
+  doc.setDrawColor(180, 180, 180)
+  doc.line(MARGIN, HEADER_HEIGHT_M, 210 - MARGIN, HEADER_HEIGHT_M)
+  let xRight = MARGIN
+  if (logoBase64) {
     try {
-      doc.addImage(firmaEncargado, 'PNG', inicioCol3 + 1, y + 1, anchoColumna - 4, alturaFirma - 2)
-    } catch (e) {
-      // Si falla, dibujar una línea como placeholder
-      doc.setDrawColor(0, 0, 0)
-      doc.setLineWidth(0.5)
-      doc.line(inicioCol3 + 5, y + alturaFirma / 2, inicioCol3 + anchoColumna - 7, y + alturaFirma / 2)
-    }
-  } else {
-    // Dibujar línea para firma manual
-    doc.setDrawColor(0, 0, 0)
-    doc.setLineWidth(0.5)
-    doc.line(inicioCol3 + 5, y + alturaFirma / 2, inicioCol3 + anchoColumna - 7, y + alturaFirma / 2)
+      doc.addImage(logoBase64, 'PNG', MARGIN, 6, LOGO_WIDTH_M, LOGO_HEIGHT_M)
+      xRight = MARGIN + LOGO_WIDTH_M + 6
+    } catch (e) {}
   }
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(40, 40, 40)
+  doc.text(NOMBRE_EMPRESA_MASIVO, xRight, 10)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.text('Reporte Masivo de Mantenimiento', xRight, 16)
+  doc.setFontSize(8)
+  doc.setTextColor(80, 80, 80)
+  doc.text(`Fecha de generación: ${fechaGeneracion}`, xRight, 22)
+  if (usuarioGenera) doc.text(`Usuario: ${usuarioGenera}`, xRight, 26)
+  doc.setTextColor(0, 0, 0)
+}
 
-  y = yInicial + alturaTotal
-
-  // Guardar PDF
-  doc.save(`orden-trabajo-${numeroOrden}.pdf`)
+function dibujarPieMasivo(doc, pageNumber, pageCount, fechaHoraGeneracion) {
+  doc.setDrawColor(200, 200, 200)
+  doc.line(MARGIN, FOOTER_Y - 2, 210 - MARGIN, FOOTER_Y - 2)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(100, 100, 100)
+  doc.text(
+    `Página ${pageNumber} de ${pageCount}  |  ${fechaHoraGeneracion}  |  ${NOMBRE_SISTEMA_MASIVO}`,
+    105,
+    FOOTER_Y + 4,
+    { align: 'center' }
+  )
+  doc.setTextColor(0, 0, 0)
 }
 
 /**
- * Genera un reporte masivo con múltiples órdenes de trabajo en un solo PDF.
- * Cada orden se genera en una página separada.
- * @param {Array<Object>} ordenes - Array de órdenes completas
- * @param {Object} datosReporteGlobal - Datos globales del reporte (aplicados a todas las órdenes)
- * @param {Object} firmasGlobales - Firmas globales (aplicadas a todas las órdenes)
+ * Genera el reporte masivo en PDF (encabezado con logo, tabla, pie).
  */
-export function exportarReporteMasivoPDF(ordenes, datosReporteGlobal = {}, firmasGlobales = {}) {
+export async function exportarReporteMasivoPDF(ordenes, opciones = {}) {
   if (!ordenes || ordenes.length === 0) {
     alert('No hay órdenes para generar el reporte masivo')
     return
   }
 
+  const fechaGen = opciones.fechaGeneracion ? new Date(opciones.fechaGeneracion) : new Date()
+  const fechaGeneracion = fechaGen.toLocaleDateString('es-CO', { dateStyle: 'long' })
+  const fechaHoraGeneracion = `${fechaGen.toLocaleDateString('es-CO')} ${fechaGen.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`
+  const usuarioGenera = opciones.usuarioGenera || '—'
+
+  let logoBase64 = opciones.logoBase64 || null
+  if (!logoBase64) logoBase64 = await cargarLogoBase64()
+
   const doc = new jsPDF('p', 'mm', 'a4')
-  let y = 20
+  doc.setFont('helvetica')
 
-  // PORTADA - Mejor formato
-  doc.setFontSize(16)
-  doc.setFont(undefined, 'bold')
-  doc.text('REPORTE MASIVO DE ÓRDENES DE TRABAJO', 105, y, { align: 'center' })
-  y += 12
-  
-  // Línea separadora
-  doc.setDrawColor(200, 200, 200)
-  doc.line(30, y, 180, y)
-  y += 10
-  
-  doc.setFontSize(11)
-  doc.setFont(undefined, 'normal')
-  doc.text(`Total de órdenes: ${ordenes.length}`, 105, y, { align: 'center' })
-  y += 7
-  doc.text(`Fecha de generación: ${new Date().toLocaleDateString('es-CO', { dateStyle: 'long' })}`, 105, y, { align: 'center' })
-  y += 7
-  doc.text(`Hora de generación: ${new Date().toLocaleTimeString('es-CO')}`, 105, y, { align: 'center' })
-  y += 15
-
-  // ÍNDICE
-  doc.setFontSize(12)
-  doc.setFont(undefined, 'bold')
-  doc.text('ÍNDICE DE ÓRDENES', 14, y)
-  y += 8
-  doc.setFontSize(9)
-  doc.setFont(undefined, 'normal')
-
-  ordenes.forEach((orden, index) => {
+  const filas = ordenes.map((orden, index) => {
     const numeroMatch = orden.titulo?.match(/Nro:\s*(\d+)/i)
-    const numeroOrden = numeroMatch ? numeroMatch[1] : orden.id
-    // Limpiar título para el índice
-    let titulo = orden.titulo || orden.descripcion || `Orden #${orden.id}`
-    // Remover prefijos repetidos
-    titulo = titulo.replace(/^ORDEN DE TRABAJO Nro:\s*\d+\s*-?\s*/i, '').trim()
-    if (!titulo) titulo = `Orden #${orden.id}`
-    
-    doc.text(`${index + 1}. Orden Nro: ${numeroOrden}`, 20, y)
-    y += 4
-    const tituloLines = doc.splitTextToSize(titulo, 160)
-    doc.text(tituloLines, 25, y)
-    y += tituloLines.length * 4 + 3
-    
-    if (y > 270) {
-      doc.addPage()
-      y = 15
-    }
-  })
-
-  // Generar cada orden en una página separada
-  ordenes.forEach((orden, index) => {
-    if (index > 0) {
-      doc.addPage()
-    }
-    y = 20
-
-    // Extraer número de orden del título
-    const numeroMatch = orden.titulo?.match(/Nro:\s*(\d+)/i)
-    const numeroOrden = numeroMatch ? numeroMatch[1] : orden.id
-
-    // ENCABEZADO - Mejor formato
-    doc.setFontSize(14)
-    doc.setFont(undefined, 'bold')
-    doc.text('ORDEN DE TRABAJO', 105, y, { align: 'center' })
-    y += 7
-    doc.setFontSize(11)
-    doc.text(`Nro: ${numeroOrden}`, 105, y, { align: 'center' })
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-    doc.text(`Tipo de Orden: ${datosReporteGlobal.tipoOrden || 'Orden de mantenimiento'}`, 105, y, { align: 'center' })
-    y += 10
-    
-    // Línea separadora
-    doc.setDrawColor(200, 200, 200)
-    doc.line(14, y, 196, y)
-    y += 8
-
-    // SECCIÓN 1: FECHAS
-    doc.setFontSize(10)
-    doc.setFont(undefined, 'bold')
-    doc.text('1. FECHAS', 14, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-
-    const prioridadLabel = {
-      baja: 'Baja',
-      media: 'Media',
-      alta: 'Alta',
-    }
-    doc.text(`Prioridad: ${prioridadLabel[orden.prioridad] || orden.prioridad}`, 14, y)
-    doc.text(`Fecha Impresión: ${new Date().toLocaleDateString('es-CO')}`, 110, y)
-    y += 5
-    doc.text(`Fecha Inicio: ${orden.fechaInicio ? new Date(orden.fechaInicio).toLocaleDateString('es-CO') : '—'}`, 14, y)
-    doc.text(`Fecha Fin: ${orden.fechaCierre ? new Date(orden.fechaCierre).toLocaleDateString('es-CO') : '—'}`, 110, y)
-    y += 10
-
-    // SECCIÓN 2: DATOS DEL OBJETO
-    doc.setFontSize(10)
-    doc.setFont(undefined, 'bold')
-    doc.text('2. DATOS DEL OBJETO', 14, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-
-    // Extraer área y máquina de la descripción
-    const descLines = orden.descripcion?.split('\n') || []
+    const codigoOrden = numeroMatch ? numeroMatch[1] : String(orden.id || index + 1)
+    const fechaInicio = orden.fechaInicio ? new Date(orden.fechaInicio).toLocaleDateString('es-CO') : '—'
+    const descLines = (orden.descripcion || '').split('\n')
     let area = ''
     let maquina = ''
-    let ubicacionTecnica = datosReporteGlobal.ubicacionTecnica || '—'
-    let emplazamiento = datosReporteGlobal.emplazamiento || '—'
-
     descLines.forEach((line) => {
       if (line.startsWith('Área:')) area = line.replace('Área:', '').trim()
       if (line.startsWith('Máquina:')) maquina = line.replace('Máquina:', '').trim()
     })
-
-    doc.text(`Cod Equipo: ${orden.equipoId || '—'}`, 14, y)
-    doc.text(`Descrip Equip: ${maquina || orden.equipoNombre || '—'}`, 105, y)
-    y += 5
-    doc.text(`Emplazamiento: ${emplazamiento}`, 14, y)
-    doc.text(`Área: ${area || '—'}`, 105, y)
-    y += 5
-    doc.text(`Ubicación técnica: ${ubicacionTecnica}`, 14, y)
-    doc.text(`Grupo planificador: ${datosReporteGlobal.grupoPlanificador || 'Producción'}`, 105, y)
-    y += 5
-    doc.text(`Resp. Pto Triba: ${datosReporteGlobal.responsablePtoTriba || 'Mantenimiento'}`, 14, y)
-    doc.text(`Responsable 1: ${orden.asignadoANombre || datosReporteGlobal.responsable1 || '—'}`, 105, y)
-    y += 10
-
-    // SECCIÓN 3: DESCRIPCIÓN
-    doc.setFontSize(10)
-    doc.setFont(undefined, 'bold')
-    doc.text('3. DESCRIPCIÓN', 14, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-    
-    // Limpiar descripción para evitar duplicación
-    let descripcion = orden.descripcion || orden.titulo || '—'
-    // Remover información que ya se mostró en datos del objeto
-    descripcion = descripcion
-      .replace(/Área:\s*[^\n]+\n?/gi, '')
-      .replace(/Máquina:\s*[^\n]+\n?/gi, '')
-      .replace(/Solicitante:\s*[^\n]+\n?/gi, '')
-      .trim()
-    
-    if (descripcion && descripcion !== '—') {
-      const descLines2 = doc.splitTextToSize(descripcion, 180)
-      doc.text(descLines2, 14, y)
-      y += descLines2.length * 4 + 5
-    } else {
-      doc.text('—', 14, y)
-      y += 5
-    }
-    y += 3
-
-    // SECCIÓN 4: TRABAJO REALIZADO
-    if (orden.trabajoRealizado) {
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'bold')
-      doc.text('4. TRABAJO REALIZADO', 14, y)
-      y += 6
-      doc.setFontSize(9)
-      doc.setFont(undefined, 'normal')
-      const trabajoLines = doc.splitTextToSize(orden.trabajoRealizado, 180)
-      doc.text(trabajoLines, 14, y)
-      y += trabajoLines.length * 4 + 5
-    }
-
-    // SECCIÓN 5: EVIDENCIAS
-    const evidencias = Array.isArray(orden.evidencias) ? orden.evidencias : []
-    if (evidencias.length > 0) {
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'bold')
-      doc.text('5. EVIDENCIAS', 14, y)
-      y += 6
-      doc.setFontSize(9)
-      doc.setFont(undefined, 'normal')
-      evidencias.forEach((ev, idx) => {
-        const nombre = (typeof ev === 'object' && ev?.nombre) ? ev.nombre : (ev?.url || ev || `Evidencia ${idx + 1}`)
-        doc.text(`${idx + 1}. ${nombre}`, 14, y)
-        y += 5
-        if (y > 270) {
-          doc.addPage()
-          y = 15
-        }
-      })
-      y += 3
-    }
-
-    // SECCIÓN 6: OBSERVACIONES (solo si hay observaciones específicas, no duplicar trabajo realizado)
-    doc.setFontSize(10)
-    doc.setFont(undefined, 'bold')
-    doc.text('6. OBSERVACIONES', 14, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'normal')
-    
-    // Solo usar observaciones globales, no duplicar trabajo realizado
-    const observaciones = datosReporteGlobal.observaciones || '—'
-    if (observaciones && observaciones !== '—' && observaciones !== orden.trabajoRealizado) {
-      const obsLines = doc.splitTextToSize(observaciones, 180)
-      doc.text(obsLines, 14, y)
-      y += obsLines.length * 4 + 5
-    } else {
-      doc.text('—', 14, y)
-      y += 5
-    }
-    y += 5
-
-    // SECCIÓN 7: FIRMAS (simplificadas para reporte masivo)
-    doc.setFontSize(10)
-    doc.setFont(undefined, 'bold')
-    doc.text('7. FIRMAS', 14, y)
-    y += 8
-
-    doc.setFontSize(9)
-    doc.setFont(undefined, 'bold')
-    doc.text('Ejecutante:', 14, y)
-    y += 5
-    doc.setFont(undefined, 'normal')
-    doc.text(`Nombre: ${orden.asignadoANombre || datosReporteGlobal.ejecutanteNombre || '—'}`, 14, y)
-    y += 5
-    doc.text(`Fecha: ${datosReporteGlobal.ejecutanteFecha || new Date().toLocaleDateString('es-CO')}`, 14, y)
-    y += 8
-
-    doc.setFont(undefined, 'bold')
-    doc.text('Cliente interno (solicitante):', 14, y)
-    y += 5
-    doc.setFont(undefined, 'normal')
-    let solicitanteNombre = '—'
-    descLines.forEach((line) => {
-      if (line.startsWith('Solicitante:')) {
-        solicitanteNombre = line.replace('Solicitante:', '').trim()
-      }
-    })
-    doc.text(`Nombre: ${datosReporteGlobal.solicitanteNombre || solicitanteNombre}`, 14, y)
-    y += 5
-    doc.text(`Fecha: ${datosReporteGlobal.solicitanteFecha || new Date().toLocaleDateString('es-CO')}`, 14, y)
-    y += 8
-
-    doc.setFont(undefined, 'bold')
-    doc.text('Firma Encargado Mantenimiento:', 14, y)
-    y += 5
-    doc.setFont(undefined, 'normal')
-    doc.text(`Fecha: ${datosReporteGlobal.encargadoFecha || new Date().toLocaleDateString('es-CO')}`, 14, y)
+    const areaEquipo = [area, maquina || orden.equipoNombre || '—'].filter(Boolean).join(' / ') || '—'
+    const tipoMantenimiento = orden.datosReporte?.tipoMantenimiento || 'Correctivo'
+    const estado = ESTADO_LABEL[orden.estado] || orden.estado || '—'
+    const operario = orden.asignadoANombre || '—'
+    let observaciones = orden.trabajoRealizado?.split('\n')[0]?.slice(0, 50) || '—'
+    if (observaciones.length >= 50) observaciones = observaciones.slice(0, 49) + '…'
+    return [index + 1, fechaInicio, codigoOrden, areaEquipo, tipoMantenimiento, estado, operario, observaciones]
   })
 
-  // Guardar PDF
-  const fecha = new Date().toISOString().split('T')[0]
+  const encabezadoOpts = { logoBase64, fechaGeneracion, usuarioGenera }
+
+  autoTable(doc, {
+    head: [
+      ['Nº', 'Fecha', 'Código / Orden', 'Área / Equipo', 'Tipo mantenimiento', 'Estado', 'Operario asignado', 'Observaciones'],
+    ],
+    body: filas,
+    startY: TABLE_START_Y,
+    margin: { top: TABLE_START_Y, left: MARGIN, right: MARGIN },
+    styles: { font: 'helvetica', fontSize: 8 },
+    headStyles: { fillColor: [70, 70, 70], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
+    columnStyles: {
+      0: { cellWidth: 10 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 18 },
+      3: { cellWidth: 35 },
+      4: { cellWidth: 22 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 28 },
+      7: { cellWidth: 'auto' },
+    },
+    didDrawPage: (data) => {
+      dibujarEncabezadoMasivo(doc, encabezadoOpts)
+      const pageCount = doc.internal.getNumberOfPages()
+      dibujarPieMasivo(doc, data.pageNumber, pageCount, fechaHoraGeneracion)
+    },
+  })
+
+  const totalPages = doc.internal.getNumberOfPages()
+  doc.setPage(1)
+  dibujarEncabezadoMasivo(doc, encabezadoOpts)
+  dibujarPieMasivo(doc, 1, totalPages, fechaHoraGeneracion)
+
+  const fecha = fechaGen.toISOString().split('T')[0]
   doc.save(`reporte-masivo-ordenes-${fecha}.pdf`)
 }

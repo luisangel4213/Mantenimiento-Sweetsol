@@ -9,7 +9,9 @@
     "dev": "node --watch src/index.js",
     "init:env": "node scripts/init-env.js",
     "fix:mysql": "node scripts/fix-mysql.js",
-    "fix:users": "node database/fixUsers.js"
+    "fix:users": "node database/fixUsers.js",
+    "fix:maquinas": "node database/fixMaquinas.js",
+    "fix:operarios": "node database/fixOperarios.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

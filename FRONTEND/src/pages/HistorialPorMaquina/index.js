@@ -1,0 +1,2 @@
+export { HistorialPorMaquina } from './HistorialPorMaquina'
+

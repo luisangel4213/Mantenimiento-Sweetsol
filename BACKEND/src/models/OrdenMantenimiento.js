@@ -1,30 +1,13 @@
 import { query } from '../db.js'
 import * as Evidencia from './Evidencia.js'
+import * as Informe from './Informe.js'
+import * as User from './User.js'
 
-const ESTADOS = ['pendiente', 'en_progreso', 'completada', 'cancelada']
+const ESTADOS = ['pendiente', 'en_progreso', 'completada', 'proceso_cerrado', 'cancelada']
 const PRIORIDADES = ['alta', 'media', 'baja']
 
-// Cache para verificar si la columna datos_reporte existe
-let hasDatosReporteColumnCache = null
-
-async function checkDatosReporteColumn() {
-  if (hasDatosReporteColumnCache !== null) {
-    return hasDatosReporteColumnCache
-  }
-  try {
-    const [cols] = await query(`
-      SELECT COLUMN_NAME 
-      FROM INFORMATION_SCHEMA.COLUMNS 
-      WHERE TABLE_SCHEMA = DATABASE() 
-        AND TABLE_NAME = 'ordenes_mantenimiento' 
-        AND COLUMN_NAME = 'datos_reporte'
-    `)
-    hasDatosReporteColumnCache = cols && cols.length > 0
-  } catch {
-    hasDatosReporteColumnCache = false
-  }
-  return hasDatosReporteColumnCache
-}
+// La columna datos_reporte está en schema.sql; se incluye siempre en SELECT/UPDATE.
+// Si la BD es anterior a la migración, ejecutar: database/migrations/add_datos_reporte.sql
 
 function toCamel(o) {
   if (!o) return null
@@ -61,12 +44,8 @@ function toCamel(o) {
  * @returns {Promise<Array<object>>}
  */
 export async function findAll(filtros = {}, opts = {}) {
-  // Verificar si la columna datos_reporte existe
-  const hasColumn = await checkDatosReporteColumn()
-  const datosReporteColumn = hasColumn ? ', datos_reporte' : ''
-  
   let sql = `
-    SELECT id, maquina_id, asignado_a, creado_por, titulo, descripcion, estado, trabajo_realizado${datosReporteColumn},
+    SELECT id, maquina_id, asignado_a, creado_por, titulo, descripcion, estado, trabajo_realizado, datos_reporte,
            prioridad, fecha_inicio, fecha_cierre, created_at, updated_at
     FROM ordenes_mantenimiento
     WHERE 1=1
@@ -120,12 +99,8 @@ export async function findAll(filtros = {}, opts = {}) {
  * @returns {Promise<object | null>}
  */
 export async function findById(id, opts = {}) {
-  // Verificar si la columna datos_reporte existe
-  const hasColumn = await checkDatosReporteColumn()
-  const datosReporteColumn = hasColumn ? ', datos_reporte' : ''
-  
   const [rows] = await query(
-    `SELECT id, maquina_id, asignado_a, creado_por, titulo, descripcion, estado, trabajo_realizado${datosReporteColumn},
+    `SELECT id, maquina_id, asignado_a, creado_por, titulo, descripcion, estado, trabajo_realizado, datos_reporte,
             prioridad, fecha_inicio, fecha_cierre, created_at, updated_at
      FROM ordenes_mantenimiento WHERE id = ? LIMIT 1`,
     [id]
@@ -206,9 +181,6 @@ export async function update(id, data) {
   const curr = await findById(id, { includeEvidencias: false })
   if (!curr) return null
 
-  // Verificar si la columna datos_reporte existe
-  const hasColumn = await checkDatosReporteColumn()
-
   // Función auxiliar para normalizar fecha a formato MySQL
   const normalizarFecha = (fechaValue) => {
     if (!fechaValue) return null
@@ -247,7 +219,13 @@ export async function update(id, data) {
   const descripcion = data.descripcion !== undefined ? data.descripcion : curr.descripcion
   const estado = data.estado !== undefined && ESTADOS.includes(data.estado) ? data.estado : curr.estado
   const trabajo_realizado = data.trabajoRealizado !== undefined ? data.trabajoRealizado : curr.trabajoRealizado
-  const datos_reporte = data.datosReporte !== undefined ? (data.datosReporte ? JSON.stringify(data.datosReporte) : null) : null
+  // En actualizaciones parciales (ej. solo { estado }) no sobrescribir datos_reporte con null
+  const datos_reporte =
+    data.datosReporte !== undefined
+      ? (data.datosReporte ? JSON.stringify(data.datosReporte) : null)
+      : curr.datosReporte != null
+        ? JSON.stringify(curr.datosReporte)
+        : null
   const prioridad = data.prioridad !== undefined && PRIORIDADES.includes(data.prioridad) ? data.prioridad : curr.prioridad
   
   // Normalizar fechas: si se proporciona nueva fecha, normalizarla; si no, mantener la actual normalizada
@@ -266,21 +244,12 @@ export async function update(id, data) {
     fecha_cierre = curr.fechaCierre
   }
 
-  if (hasColumn) {
-    await query(
-      `UPDATE ordenes_mantenimiento
-       SET maquina_id=?, asignado_a=?, titulo=?, descripcion=?, estado=?, trabajo_realizado=?, datos_reporte=?, prioridad=?, fecha_inicio=?, fecha_cierre=?
-       WHERE id = ?`,
-      [maquina_id, asignado_a, titulo, descripcion, estado, trabajo_realizado, datos_reporte, prioridad, fecha_inicio, fecha_cierre, id]
-    )
-  } else {
-    await query(
-      `UPDATE ordenes_mantenimiento
-       SET maquina_id=?, asignado_a=?, titulo=?, descripcion=?, estado=?, trabajo_realizado=?, prioridad=?, fecha_inicio=?, fecha_cierre=?
-       WHERE id = ?`,
-      [maquina_id, asignado_a, titulo, descripcion, estado, trabajo_realizado, prioridad, fecha_inicio, fecha_cierre, id]
-    )
-  }
+  await query(
+    `UPDATE ordenes_mantenimiento
+     SET maquina_id=?, asignado_a=?, titulo=?, descripcion=?, estado=?, trabajo_realizado=?, datos_reporte=?, prioridad=?, fecha_inicio=?, fecha_cierre=?
+     WHERE id = ?`,
+    [maquina_id, asignado_a, titulo, descripcion, estado, trabajo_realizado, datos_reporte, prioridad, fecha_inicio, fecha_cierre, id]
+  )
   return findById(id)
 }
 
@@ -328,22 +297,112 @@ export async function finalizar(id, trabajoRealizado = null, datosReporte = null
   if (!curr) return null
   if (curr.estado !== 'en_progreso') return null
   
-  // Verificar si la columna datos_reporte existe
-  const hasColumn = await checkDatosReporteColumn()
   const datos_reporte_json = datosReporte ? JSON.stringify(datosReporte) : null
-  
-  if (hasColumn) {
-    await query(
-      'UPDATE ordenes_mantenimiento SET estado = ?, fecha_cierre = NOW(), trabajo_realizado = ?, datos_reporte = ? WHERE id = ?',
-      ['completada', trabajoRealizado ?? null, datos_reporte_json, id]
-    )
-  } else {
-    await query(
-      'UPDATE ordenes_mantenimiento SET estado = ?, fecha_cierre = NOW(), trabajo_realizado = ? WHERE id = ?',
-      ['completada', trabajoRealizado ?? null, id]
-    )
-  }
+  await query(
+    'UPDATE ordenes_mantenimiento SET estado = ?, fecha_cierre = NOW(), trabajo_realizado = ?, datos_reporte = ? WHERE id = ?',
+    ['completada', trabajoRealizado ?? null, datos_reporte_json, id]
+  )
   return findById(id)
+}
+
+/**
+ * Historial de mantenimiento por máquina.
+ * Incluye información de tiempos, estado final, operario e informe asociado.
+ *
+ * @param {number} maquinaId
+ * @param {{ desde?: string, hasta?: string, maquinaNombre?: string }} filtros
+ * @returns {Promise<Array<{
+ *   ordenId: number,
+ *   fechaInicio: string | null,
+ *   fechaCierre: string | null,
+ *   estado: string,
+ *   duracionMinutos: number | null,
+ *   tipoMantenimiento: string | null,
+ *   operarioId: number | null,
+ *   operarioNombre: string | null,
+ *   informeId: number | null
+ * }>>}
+ */
+export async function findHistorialByMaquina(maquinaId, filtros = {}) {
+  if (!maquinaId || Number.isNaN(Number(maquinaId))) {
+    return []
+  }
+
+  let sql = `
+    SELECT
+      o.id AS orden_id,
+      o.fecha_inicio,
+      o.fecha_cierre,
+      o.estado,
+      o.prioridad,
+      o.titulo,
+      o.descripcion,
+      o.trabajo_realizado,
+      o.asignado_a,
+      TIMESTAMPDIFF(MINUTE, o.fecha_inicio, o.fecha_cierre) AS duracion_minutos,
+      u.nombre AS operario_nombre,
+      i.id AS informe_id,
+      o.datos_reporte
+    FROM ordenes_mantenimiento o
+    LEFT JOIN usuarios u ON u.id = o.asignado_a
+    LEFT JOIN informes i ON i.orden_id = o.id
+    WHERE (
+      o.maquina_id = ?
+  `
+  const params = [maquinaId]
+
+  // Incluir órdenes antiguas donde la máquina solo está en la descripción (formato "Máquina: NOMBRE")
+  if (filtros.maquinaNombre) {
+    sql += ' OR o.descripcion LIKE ?'
+    params.push(`%Máquina: ${filtros.maquinaNombre}%`)
+  }
+
+  sql += ')'
+
+  if (filtros.desde) {
+    sql += ' AND o.fecha_inicio >= ?'
+    params.push(filtros.desde)
+  }
+  if (filtros.hasta) {
+    sql += ' AND o.fecha_inicio <= ?'
+    params.push(filtros.hasta)
+  }
+
+  sql += ' ORDER BY o.fecha_inicio DESC'
+
+  const [rows] = await query(sql, params)
+
+  return rows.map((r) => {
+    let tipoMantenimiento = null
+    if (r.datos_reporte) {
+      try {
+        const datos =
+          typeof r.datos_reporte === 'string'
+            ? JSON.parse(r.datos_reporte)
+            : r.datos_reporte
+        tipoMantenimiento =
+          datos?.tipoMantenimiento || datos?.tipo_mantenimiento || datos?.tipoM || null
+      } catch {
+        tipoMantenimiento = null
+      }
+    }
+
+    return {
+      ordenId: r.orden_id,
+      titulo: r.titulo ?? null,
+      descripcion: r.descripcion ?? null,
+      trabajoRealizado: r.trabajo_realizado ?? null,
+      prioridad: r.prioridad ?? null,
+      fechaInicio: r.fecha_inicio ?? null,
+      fechaCierre: r.fecha_cierre ?? null,
+      estado: r.estado ?? 'pendiente',
+      duracionMinutos: r.duracion_minutos != null ? Number(r.duracion_minutos) : null,
+      tipoMantenimiento,
+      operarioId: r.asignado_a ?? null,
+      operarioNombre: r.operario_nombre ?? null,
+      informeId: r.informe_id ?? null,
+    }
+  })
 }
 
 /**

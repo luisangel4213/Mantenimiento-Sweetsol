@@ -71,6 +71,7 @@ export const Ordenes = () => {
                 <option value="pendiente">Pendientes</option>
                 <option value="en_progreso">En progreso</option>
                 <option value="completada">Completadas</option>
+                <option value="proceso_cerrado">Proceso Cerrado</option>
                 <option value="cancelada">Canceladas</option>
               </select>
             </label>

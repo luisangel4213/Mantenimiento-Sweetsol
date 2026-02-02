@@ -9,7 +9,7 @@ export const DashboardResumen = ({ role, porEstado, total, completadasHoy }) => 
   const c = porEstado?.completada ?? 0
   const abiertas = p + ep
 
-  if (role === ROLES.JEFE_MANTENIMIENTO) {
+  if (role === ROLES.JEFE_MANTENIMIENTO || role === ROLES.SUPER_USUARIO) {
     return (
       <Card title="Resumen rápido">
         <p className="dashboard-resumen__p">
@@ -23,7 +23,6 @@ export const DashboardResumen = ({ role, porEstado, total, completadasHoy }) => 
         <div className="dashboard-resumen__links">
           <Link to="/reportes" className="dashboard-resumen__link">Reportes</Link>
           <Link to="/ordenes" className="dashboard-resumen__link">Órdenes</Link>
-          <Link to="/equipos" className="dashboard-resumen__link">Equipos</Link>
         </div>
       </Card>
     )
@@ -38,7 +37,6 @@ export const DashboardResumen = ({ role, porEstado, total, completadasHoy }) => 
         </p>
         <div className="dashboard-resumen__links">
           <Link to="/ordenes" className="dashboard-resumen__link">Órdenes de trabajo</Link>
-          <Link to="/equipos" className="dashboard-resumen__link">Equipos</Link>
         </div>
       </Card>
     )

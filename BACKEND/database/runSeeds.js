@@ -60,9 +60,42 @@ export async function runSeeds() {
   if (Number(mc[0]?.c) === 0) {
     await query(
       `INSERT INTO maquinas (estacion_id, nombre, codigo, marca, modelo, criticidad) VALUES
-       (1, 'Bomba centrífuga B-01', 'BOM-01', NULL, NULL, 'alta'),
-       (1, 'Compresor C-01', 'COMP-01', NULL, NULL, 'media')`
+       (1, 'LINEA MEZCLA CANDY 1', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA MEZCLA CANDY 2', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 1', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 2', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 1A', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 2A', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 3A', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 4A', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 5A', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 6', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 7', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 11', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA CANDY 12', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA MINI PACK 1', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA MINI PACK 2', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA MINI PACK 3', NULL, NULL, NULL, 'alta'),
+       (1, 'PRE-MEZCLA', NULL, NULL, NULL, 'alta'),
+       (1, 'MOLIENDA', NULL, NULL, NULL, 'alta'),
+       (1, 'PULVERIZADO', NULL, NULL, NULL, 'alta'),
+       (1, 'MEZCLADOR', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA TABLETEADO 1', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA TABLETEADO 2', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA TABLETEADO 3', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA TABLETEADO TVD-23', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA FLOW PACK 1', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA FLOW PACK 2', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA FLOW PACK 3', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA DIPS 1', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA DIPS 2', NULL, NULL, NULL, 'alta'),
+       (1, 'LINEA MEZCLA PITILLO 1', NULL, NULL, NULL, 'media'),
+       (1, 'LINEA MEZCLA PITILLO 2', NULL, NULL, NULL, 'media'),
+       (1, 'LINEA PITILLOS TOYAMA 1', NULL, NULL, NULL, 'media'),
+       (1, 'LINEA PITILLOS TOYAMA 2', NULL, NULL, NULL, 'media'),
+       (1, 'MAXIPACK', NULL, NULL, NULL, 'media'),
+       (1, 'KENWY', NULL, NULL, NULL, 'media')`
     )
-    console.log('[seeds] 2 máquinas de ejemplo creadas.')
+    console.log('[seeds] Máquinas de planta creadas (80% alta, 20% media).')
   }
 }

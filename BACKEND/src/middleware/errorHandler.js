@@ -10,6 +10,9 @@ const MULTER_MESSAGES = {
   LIMIT_FIELD_COUNT: 'Demasiados campos',
 }
 
+const MYSQL_ENUM_ESTADO =
+  'El valor de estado no está permitido en la base de datos. Ejecute la migración: database/migrations/add_estado_proceso_cerrado.sql'
+
 export function errorHandler(err, req, res, next) {
   let status = err.status
   let message = err.message
@@ -17,6 +20,11 @@ export function errorHandler(err, req, res, next) {
   if (err instanceof multer.MulterError) {
     status = 400
     message = MULTER_MESSAGES[err.code] || `Error en la subida: ${err.code}`
+  }
+  const code = err.code ?? err.original?.code
+  if (code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD' && (err.message?.includes('estado') || err.original?.sqlMessage?.includes('estado'))) {
+    status = 400
+    message = MYSQL_ENUM_ESTADO
   }
   if (status == null) status = 500
   if (!message) message = 'Error interno del servidor'

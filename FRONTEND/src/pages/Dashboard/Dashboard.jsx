@@ -7,6 +7,7 @@ import './Dashboard.css'
 
 const TITULO_POR_ROL = {
   [ROLES.JEFE_MANTENIMIENTO]: 'Vista general del taller',
+  [ROLES.SUPER_USUARIO]: 'Vista general del taller',
   [ROLES.OPERARIO_MANTENIMIENTO]: 'Tus tareas de mantenimiento',
   [ROLES.OPERARIO_PRODUCCION]: 'Mantenimiento y producción',
 }
@@ -26,7 +27,19 @@ export const Dashboard = () => {
   const nombre = user?.nombre || user?.email || ''
   const rol = user?.role
   const titulo = (rol && TITULO_POR_ROL[rol]) || 'Dashboard'
-  const rolLabel = rol ? ROLES_LABEL[rol] : null
+
+  let rolLabel = null
+  if (rol) {
+    rolLabel = ROLES_LABEL[rol] || null
+    // Ajustes específicos por usuario (igual que en Header)
+    if (rol === ROLES.OPERARIO_PRODUCCION) {
+      if (user?.usuario === 'produccion') {
+        rolLabel = 'Producción'
+      } else if (user?.usuario === 'calidad') {
+        rolLabel = 'Tec Calidad'
+      }
+    }
+  }
 
   return (
     <div className="dashboard">

@@ -1,9 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useContext, useState, useEffect, useCallback } from 'react'
+import { AuthContext } from './authContextRef'
 import { authService } from '../services'
 import { TOKEN_KEY, USER_KEY } from '../constants'
-import { ROLES_LIST } from '../constants'
-
-const AuthContext = createContext(null)
+import { ROLES_LIST, ROLES } from '../constants'
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
@@ -29,15 +28,15 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = !!user
 
   const loadFromStorage = useCallback(() => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    const stored = localStorage.getItem(USER_KEY)
+    const token = sessionStorage.getItem(TOKEN_KEY)
+    const stored = sessionStorage.getItem(USER_KEY)
     const parsed = parseStoredUser(stored)
     if (token && parsed?.role && ROLES_LIST.includes(parsed.role)) {
       setUser(parsed)
     } else {
-      if (!parsed?.role || !ROLES_LIST.includes(parsed.role)) {
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
+      if (!parsed?.role || ROLES_LIST.indexOf(parsed.role) === -1) {
+        sessionStorage.removeItem(TOKEN_KEY)
+        sessionStorage.removeItem(USER_KEY)
       }
       setUser(null)
     }
@@ -56,15 +55,15 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Respuesta de login inválida: faltan token o rol válido')
     }
 
-    localStorage.setItem(TOKEN_KEY, token)
-    localStorage.setItem(USER_KEY, JSON.stringify(userData))
+    sessionStorage.setItem(TOKEN_KEY, token)
+    sessionStorage.setItem(USER_KEY, JSON.stringify(userData))
     setUser(userData)
     return userData
   }, [])
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    sessionStorage.removeItem(TOKEN_KEY)
+    sessionStorage.removeItem(USER_KEY)
     setUser(null)
   }, [])
 
@@ -74,7 +73,11 @@ export const AuthProvider = ({ children }) => {
   )
 
   const hasAnyRole = useCallback(
-    (roles) => (user?.role ? roles.includes(user.role) : false),
+    (roles) => {
+      if (!user?.role) return false
+      if (user.role === ROLES.SUPER_USUARIO) return true
+      return roles.includes(user.role)
+    },
     [user?.role]
   )
 

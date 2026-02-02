@@ -1,11 +1,9 @@
-import { ROLES_LIST } from '../constants/index.js'
+import { ROLES_LIST, ROLES } from '../constants/index.js'
 
 /**
  * Middleware de autorización por roles. Debe ir después de auth.
+ * El rol SUPER_USUARIO tiene acceso a todo.
  * @param {...string} allowedRoles - Roles permitidos (ej: ROLES.JEFE_MANTENIMIENTO)
- * @example
- *   router.get('/admin', auth, authorize(ROLES.JEFE_MANTENIMIENTO), ctrl.admin)
- *   router.get('/equipos', auth, authorize(ROLES.JEFE_MANTENIMIENTO, ROLES.OPERARIO_MANTENIMIENTO), ctrl.list)
  */
 export function authorize(...allowedRoles) {
   const set = new Set(allowedRoles.filter((r) => ROLES_LIST.includes(r)))
@@ -16,6 +14,7 @@ export function authorize(...allowedRoles) {
       e.status = 401
       return next(e)
     }
+    if (req.user.role === ROLES.SUPER_USUARIO) return next()
     if (set.size > 0 && !set.has(req.user.role)) {
       const e = new Error('No tiene permiso para esta acción')
       e.status = 403

@@ -97,7 +97,7 @@ CREATE TABLE `ordenes_mantenimiento` (
   `creado_por` INT UNSIGNED NULL,
   `titulo` VARCHAR(200) NOT NULL,
   `descripcion` TEXT NULL,
-  `estado` ENUM('pendiente','en_progreso','completada','cancelada') NOT NULL DEFAULT 'pendiente',
+  `estado` ENUM('pendiente','en_progreso','completada','proceso_cerrado','cancelada') NOT NULL DEFAULT 'pendiente',
   `trabajo_realizado` TEXT NULL,
   `datos_reporte` JSON NULL COMMENT 'Datos estructurados del reporte completo de orden de trabajo',
   `prioridad` ENUM('alta','media','baja') NULL DEFAULT 'media',
@@ -155,7 +155,8 @@ SET FOREIGN_KEY_CHECKS = 1;
 INSERT INTO `roles` (`codigo`, `nombre`) VALUES
   ('JEFE_MANTENIMIENTO',   'Jefe de Mantenimiento'),
   ('OPERARIO_MANTENIMIENTO', 'Operario de Mantenimiento'),
-  ('OPERARIO_PRODUCCION',  'Operario de Producción');
+  ('OPERARIO_PRODUCCION',  'Operario de Producción'),
+  ('SUPER_USUARIO',        'Super Usuario');
 
 -- ------------------------------------------------------------
 -- Datos iniciales: estación por defecto (usuarios y máquinas: runSeeds o seeds)

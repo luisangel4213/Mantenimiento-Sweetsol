@@ -169,13 +169,15 @@ export const Login = () => {
             <br />3. Los usuarios se crean automáticamente con la contraseña: <code>123456</code>
           </p>
           <div className="login__credentials-list">
+            {/* 0. Super Usuario (acceso total al aplicativo) */}
             <div className="login__credential-item">
               <div className="login__credential-header">
-                <strong>Jefe de Mantenimiento</strong>
+                <strong>Superior</strong>
+                <span className="login__credential-role-note">Super Usuario (acceso total)</span>
                 <button
                   type="button"
                   className="login__credential-fill"
-                  onClick={() => fillCredentials('jefe', '123456')}
+                  onClick={() => fillCredentials('superior', '123456')}
                   disabled={submitting}
                 >
                   Usar estas credenciales
@@ -183,22 +185,93 @@ export const Login = () => {
               </div>
               <div className="login__credential-detail">
                 <span>Usuario:</span>
-                <code onClick={() => copyToClipboard('jefe', 'jefe-user')} className="login__credential-copy">
-                  jefe
+                <code onClick={() => copyToClipboard('superior', 'superior-user')} className="login__credential-copy">
+                  superior
                 </code>
-                {copiedCredential === 'jefe-user' && <span className="login__credential-copied">✓ Copiado</span>}
+                {copiedCredential === 'superior-user' && (
+                  <span className="login__credential-copied">✓ Copiado</span>
+                )}
               </div>
               <div className="login__credential-detail">
                 <span>Contraseña:</span>
-                <code onClick={() => copyToClipboard('123456', 'jefe-pass')} className="login__credential-copy">
+                <code onClick={() => copyToClipboard('123456', 'superior-pass')} className="login__credential-copy">
                   123456
                 </code>
-                {copiedCredential === 'jefe-pass' && <span className="login__credential-copied">✓ Copiado</span>}
+                {copiedCredential === 'superior-pass' && (
+                  <span className="login__credential-copied">✓ Copiado</span>
+                )}
               </div>
             </div>
+
+            {/* 1. Producción */}
             <div className="login__credential-item">
               <div className="login__credential-header">
-                <strong>Operario de Mantenimiento</strong>
+                <strong>Producción</strong>
+                <span className="login__credential-role-note">Rol interno: Operario de Producción</span>
+                <button
+                  type="button"
+                  className="login__credential-fill"
+                  onClick={() => fillCredentials('produccion', '123456')}
+                  disabled={submitting}
+                >
+                  Usar estas credenciales
+                </button>
+              </div>
+              <div className="login__credential-detail">
+                <span>Usuario:</span>
+                <code onClick={() => copyToClipboard('produccion', 'prod-user')} className="login__credential-copy">
+                  produccion
+                </code>
+                {copiedCredential === 'prod-user' && <span className="login__credential-copied">✓ Copiado</span>}
+              </div>
+              <div className="login__credential-detail">
+                <span>Contraseña:</span>
+                <code onClick={() => copyToClipboard('123456', 'prod-pass')} className="login__credential-copy">
+                  123456
+                </code>
+                {copiedCredential === 'prod-pass' && <span className="login__credential-copied">✓ Copiado</span>}
+              </div>
+            </div>
+
+            {/* 2. Calidad (mismas funciones que Producción) */}
+            <div className="login__credential-item">
+              <div className="login__credential-header">
+                <strong>Calidad</strong>
+                <span className="login__credential-role-note">Tec Calidad</span>
+                <button
+                  type="button"
+                  className="login__credential-fill"
+                  onClick={() => fillCredentials('calidad', '123456')}
+                  disabled={submitting}
+                >
+                  Usar estas credenciales
+                </button>
+              </div>
+              <div className="login__credential-detail">
+                <span>Usuario:</span>
+                <code onClick={() => copyToClipboard('calidad', 'calidad-user')} className="login__credential-copy">
+                  calidad
+                </code>
+                {copiedCredential === 'calidad-user' && (
+                  <span className="login__credential-copied">✓ Copiado</span>
+                )}
+              </div>
+              <div className="login__credential-detail">
+                <span>Contraseña:</span>
+                <code onClick={() => copyToClipboard('123456', 'calidad-pass')} className="login__credential-copy">
+                  123456
+                </code>
+                {copiedCredential === 'calidad-pass' && (
+                  <span className="login__credential-copied">✓ Copiado</span>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Técnico MTTO (antes Operario de Mantenimiento) */}
+            <div className="login__credential-item">
+              <div className="login__credential-header">
+                <strong>Técnico MTTO</strong>
+                <span className="login__credential-role-note">Rol interno: Operario de Mantenimiento</span>
                 <button
                   type="button"
                   className="login__credential-fill"
@@ -223,13 +296,16 @@ export const Login = () => {
                 {copiedCredential === 'op1-pass' && <span className="login__credential-copied">✓ Copiado</span>}
               </div>
             </div>
+
+            {/* 4. Coordinador MTTO (antes Jefe de Mantenimiento) */}
             <div className="login__credential-item">
               <div className="login__credential-header">
-                <strong>Operario de Producción</strong>
+                <strong>Coordinador MTTO</strong>
+                <span className="login__credential-role-note">Rol interno: Jefe de Mantenimiento</span>
                 <button
                   type="button"
                   className="login__credential-fill"
-                  onClick={() => fillCredentials('produccion', '123456')}
+                  onClick={() => fillCredentials('jefe', '123456')}
                   disabled={submitting}
                 >
                   Usar estas credenciales
@@ -237,18 +313,64 @@ export const Login = () => {
               </div>
               <div className="login__credential-detail">
                 <span>Usuario:</span>
-                <code onClick={() => copyToClipboard('produccion', 'prod-user')} className="login__credential-copy">
-                  produccion
+                <code onClick={() => copyToClipboard('jefe', 'jefe-user')} className="login__credential-copy">
+                  jefe
                 </code>
-                {copiedCredential === 'prod-user' && <span className="login__credential-copied">✓ Copiado</span>}
+                {copiedCredential === 'jefe-user' && <span className="login__credential-copied">✓ Copiado</span>}
               </div>
               <div className="login__credential-detail">
                 <span>Contraseña:</span>
-                <code onClick={() => copyToClipboard('123456', 'prod-pass')} className="login__credential-copy">
+                <code onClick={() => copyToClipboard('123456', 'jefe-pass')} className="login__credential-copy">
                   123456
                 </code>
-                {copiedCredential === 'prod-pass' && <span className="login__credential-copied">✓ Copiado</span>}
+                {copiedCredential === 'jefe-pass' && <span className="login__credential-copied">✓ Copiado</span>}
               </div>
+            </div>
+
+            {/* Técnicos MTTO (usuarios múltiples de mantenimiento) */}
+            <div className="login__credential-item">
+              <div className="login__credential-header">
+                <strong>Técnicos MTTO (usuarios)</strong>
+              </div>
+              <p className="login__credential-detail">
+                Todos estos usuarios usan la misma contraseña:{' '}
+                <code
+                  onClick={() => copyToClipboard('123456', 'all-op-pass')}
+                  className="login__credential-copy"
+                >
+                  123456
+                </code>
+                {copiedCredential === 'all-op-pass' && (
+                  <span className="login__credential-copied">✓ Copiado</span>
+                )}
+              </p>
+              <ul className="login__credential-list-compact">
+                {[
+                  'RPADILLA',
+                  'SVILLAFAÑE',
+                  'JPIERRE',
+                  'JVALLEJO',
+                  'JMADROÑERO',
+                  'JRENGIFO',
+                  'SSILVA',
+                  'AMERCHAN',
+                  'LSERNA',
+                  'EQUINTERO',
+                ].map((u) => (
+                  <li key={u} className="login__credential-detail">
+                    <span>Usuario:</span>
+                    <code
+                      onClick={() => {
+                        copyToClipboard(u, `op-${u}-user`)
+                        fillCredentials(u, '123456')
+                      }}
+                      className="login__credential-copy"
+                    >
+                      {u}
+                    </code>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

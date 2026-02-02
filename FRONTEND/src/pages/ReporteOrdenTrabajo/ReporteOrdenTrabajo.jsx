@@ -25,6 +25,7 @@ export const ReporteOrdenTrabajo = () => {
     ejecutanteFecha: '',
     solicitanteNombre: '',
     solicitanteFecha: '',
+    encargadoNombre: '',
     encargadoFecha: '',
   })
 
@@ -116,9 +117,9 @@ export const ReporteOrdenTrabajo = () => {
   const tieneDatosReporte = orden?.datosReporte != null
   const modoLectura = tieneDatosReporte
 
-  const handleGenerarPDF = () => {
+  const handleGenerarPDF = async () => {
     if (!orden) return
-    exportarOrdenTrabajoPDF(orden, datosReporte, firmas.ejecutante, firmas.solicitante, firmas.encargado)
+    await exportarOrdenTrabajoPDF(orden, datosReporte, firmas.ejecutante, firmas.solicitante, firmas.encargado)
   }
 
   if (loading) {
@@ -512,6 +513,12 @@ export const ReporteOrdenTrabajo = () => {
 
           <div className="reporte-orden-trabajo__firma-item">
             <h4>Encargado Mantenimiento</h4>
+            <input
+              type="text"
+              placeholder="Nombre del encargado"
+              value={datosReporte.encargadoNombre || ''}
+              onChange={(e) => setDatosReporte((prev) => ({ ...prev, encargadoNombre: e.target.value }))}
+            />
             <input
               type="date"
               placeholder="Fecha"

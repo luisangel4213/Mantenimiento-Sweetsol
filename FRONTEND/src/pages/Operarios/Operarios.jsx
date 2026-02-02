@@ -1,14 +1,32 @@
 import { useState, useEffect } from 'react'
 import { Card, Loader } from '../../components'
 import { userService } from '../../services'
+import { useAuth } from '../../context'
+import { ROLES } from '../../constants'
 import './Operarios.css'
 
+/** Operarios de mantenimiento con usuario y contraseña predeterminados (contraseña: 123456). Misma lista que fix:operarios. Nombres visibles = usuarios de login. */
+const OPERARIOS_PREDETERMINADOS = [
+  { nombre: 'RAFAEL PADILLA', usuario: 'RPADILLA' },
+  { nombre: 'SERGIO VILLAFAÑE', usuario: 'SVILLAFAÑE' },
+  { nombre: 'JEAN PIERRE', usuario: 'JPIERRE' },
+  { nombre: 'JOLMAN VALLEJO', usuario: 'JVALLEJO' },
+  { nombre: 'JORGE MADROÑERO', usuario: 'JMADROÑERO' },
+  { nombre: 'JHON RENGIFO', usuario: 'JRENGIFO' },
+  { nombre: 'SANTIAGO SILVA', usuario: 'SSILVA' },
+  { nombre: 'ANDRÉS MERCHÁN', usuario: 'AMERCHAN' },
+  { nombre: 'LUIS ÁNGEL SERNA', usuario: 'LSERNA' },
+  { nombre: 'ESTEBAN QUINTERO', usuario: 'EQUINTERO' },
+]
+
 export const Operarios = () => {
+  const { user, hasRole } = useAuth()
   const [operarios, setOperarios] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const esSuperUsuario = hasRole(ROLES.SUPER_USUARIO)
 
   const [formData, setFormData] = useState({
     usuario: '',
@@ -98,6 +116,21 @@ export const Operarios = () => {
       const errorMessage = err.response?.data?.message || err.message || 'Error al crear el operario'
       setError(errorMessage)
       console.error(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDesactivar = async (id, nombre, usuario) => {
+    if (!window.confirm(`¿Desactivar al operario "${nombre}" (${usuario})? No podrá iniciar sesión.`)) return
+    setSaving(true)
+    setError(null)
+    try {
+      await userService.eliminarUsuario(id)
+      setSuccess('Operario desactivado')
+      await cargarOperarios()
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Error al desactivar')
     } finally {
       setSaving(false)
     }
@@ -256,36 +289,54 @@ export const Operarios = () => {
       </Card>
 
       <Card title="Operarios Registrados">
-        {operarios.length === 0 ? (
-          <p className="operarios__empty">No hay operarios registrados.</p>
-        ) : (
-          <div className="operarios__table-wrapper">
-            <table className="operarios__table">
-              <thead>
+        <p className="operarios__hint">
+          Operarios de mantenimiento. Crear con contraseña mínima 6 caracteres. El Super Usuario puede desactivar operarios.
+        </p>
+        <div className="operarios__table-wrapper">
+          <table className="operarios__table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Usuario</th>
+                <th>Estado</th>
+                {esSuperUsuario && <th>Acciones</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {operarios.length === 0 ? (
                 <tr>
-                  <th>Nombre</th>
-                  <th>Usuario</th>
-                  <th>Email</th>
-                  <th>Estado</th>
+                  <td colSpan={esSuperUsuario ? 4 : 3}>No hay operarios registrados</td>
                 </tr>
-              </thead>
-              <tbody>
-                {operarios.map((op) => (
+              ) : (
+                operarios.map((op) => (
                   <tr key={op.id}>
                     <td>{op.nombre}</td>
                     <td>{op.usuario}</td>
-                    <td>{op.email || '—'}</td>
                     <td>
                       <span className={`operarios__status operarios__status--${op.activo ? 'activo' : 'inactivo'}`}>
                         {op.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
+                    {esSuperUsuario && (
+                      <td>
+                        {op.activo && op.id !== user?.id && (
+                          <button
+                            type="button"
+                            className="operarios__btn operarios__btn--link operarios__btn--danger"
+                            onClick={() => handleDesactivar(op.id, op.nombre, op.usuario)}
+                            disabled={saving}
+                          >
+                            Desactivar
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   )

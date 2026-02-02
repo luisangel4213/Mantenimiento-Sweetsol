@@ -1,7 +1,10 @@
 /**
- * Áreas y sus solicitantes correspondientes
+ * Áreas del solicitante y nombres por área para el filtro en Solicitud de mantenimiento.
+ * Solicitante: primero se elige Área, luego el nombre dentro de esa área.
  */
-export const AREAS_SOLICITANTES = {
+export const AREAS_SOLICITANTE = ['Producción', 'Calidad', 'Mantenimiento']
+
+export const SOLICITANTES_BY_AREA = {
   Producción: [
     'NIXON TRIANA GUZMAN',
     'SANTIAGO RODRIGUEZ',
@@ -10,22 +13,11 @@ export const AREAS_SOLICITANTES = {
   Calidad: [
     'DANNA MARÍA NAVAS',
     'NICOLE LOZADA',
-    'GABRIELA CORTEZ',
+    'GRABIELA CORTES',
     'DANIELA BUITRAGO',
-    'LAURA RIOS',
   ],
-  Administrativos: [
-    'DAVID BENAVIDEZ',
-    'KAREN MOLINA',
-    'REINALDO NUÑEZ',
-    'PAOLA MORALES',
-    'PAOLA FIGUEROA',
-    'VIVIANA QUINTERO',
+  Mantenimiento: [
+    'CARLOS SANTIUSTY',
+    'ESTEBAN QUINTERO',
   ],
 }
-
-/**
- * Lista de áreas disponibles
- */
-export const AREAS_SOLICITUD = Object.keys(AREAS_SOLICITANTES)
-
