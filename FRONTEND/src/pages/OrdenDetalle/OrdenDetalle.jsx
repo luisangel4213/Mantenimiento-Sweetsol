@@ -226,46 +226,66 @@ export const OrdenDetalle = () => {
         nuevosDatos.solicitanteNombre = info.solicitanteNombre
       }
       
-      // Actualizar datos del reporte
+      // Hidratar operaciones, repuestos y observaciones desde datosReporte guardado (si existe)
+      const dr = orden.datosReporte && typeof orden.datosReporte === 'object' ? orden.datosReporte : null
+      const opsPlaneadasDesdeOrden = dr && Array.isArray(dr.operacionesPlaneadas) && dr.operacionesPlaneadas.length > 0
+        ? dr.operacionesPlaneadas.map((op) => ({
+            puestoTrabajo: op.puestoTrabajo ?? '',
+            descripcion: op.descripcion ?? '',
+            cantPersonas: op.cantPersonas ?? '',
+            horasTrabajo: op.horasTrabajo ?? '',
+            horaInicio: op.horaInicio ?? '',
+            horaFin: op.horaFin ?? '',
+            horasReales: op.horasReales ?? '',
+            ejecuto: op.ejecuto ?? false,
+          }))
+        : null
+      const opsNoPlaneadasDesdeOrden = dr && Array.isArray(dr.operacionesNoPlaneadas) && dr.operacionesNoPlaneadas.length > 0
+        ? dr.operacionesNoPlaneadas.map((op) => ({
+            descripcion: op.descripcion ?? '',
+            horaInicio: op.horaInicio ?? '',
+            horaFin: op.horaFin ?? '',
+            horasReales: op.horasReales ?? '',
+            ejecuto: op.ejecuto ?? false,
+          }))
+        : null
+      const repuestosDesdeOrden = dr && Array.isArray(dr.repuestos) && dr.repuestos.length > 0
+        ? dr.repuestos.map((r) => ({
+            codigo: r.codigo ?? '',
+            descripcion: r.descripcion ?? '',
+            cantidad: r.cantidad ?? '',
+            tipoPosicion: r.tipoPosicion ?? '',
+            documento: r.documento ?? '',
+          }))
+        : null
+
+      // Actualizar datos del reporte (pre-llenado + hidratación desde BD)
       setDatosReporte((prev) => {
         const actualizado = { ...prev, ...nuevosDatos }
-        
-        // Nombre de la máquina → Puesto de Trabajo (en la primera operación planeada)
-        if (info.maquina) {
-          if (prev.operacionesPlaneadas && prev.operacionesPlaneadas.length > 0) {
-            // Si ya hay operaciones, actualizar solo el puesto de trabajo de la primera
+        if (orden.asignadoANombre) {
+          actualizado.ejecutanteNombre = orden.asignadoANombre
+          actualizado.responsable1 = orden.asignadoANombre
+        }
+        if (dr?.observaciones != null && dr.observaciones !== '') {
+          actualizado.observaciones = dr.observaciones
+        }
+        if (opsPlaneadasDesdeOrden) actualizado.operacionesPlaneadas = opsPlaneadasDesdeOrden
+        else if (info.maquina) {
+          if (prev.operacionesPlaneadas?.length > 0) {
             actualizado.operacionesPlaneadas = [
               { ...prev.operacionesPlaneadas[0], puestoTrabajo: info.maquina },
               ...prev.operacionesPlaneadas.slice(1),
             ]
           } else {
-            // Si no hay operaciones, crear una nueva con el puesto de trabajo
             actualizado.operacionesPlaneadas = [
-              {
-                puestoTrabajo: info.maquina,
-                descripcion: '',
-                cantPersonas: '',
-                horasTrabajo: '',
-                horaInicio: '',
-                horaFin: '',
-                horasReales: '',
-                ejecuto: false,
-              },
+              { puestoTrabajo: info.maquina, descripcion: '', cantPersonas: '', horasTrabajo: '', horaInicio: '', horaFin: '', horasReales: '', ejecuto: false },
             ]
           }
         }
-        
+        if (opsNoPlaneadasDesdeOrden) actualizado.operacionesNoPlaneadas = opsNoPlaneadasDesdeOrden
+        if (repuestosDesdeOrden) actualizado.repuestos = repuestosDesdeOrden
         return actualizado
       })
-      
-      // Actualizar ejecutante y responsable si está asignado
-      if (orden.asignadoANombre) {
-        setDatosReporte((prev) => ({
-          ...prev,
-          ejecutanteNombre: orden.asignadoANombre,
-          responsable1: orden.asignadoANombre,
-        }))
-      }
     }
   }, [orden])
 
@@ -426,7 +446,12 @@ export const OrdenDetalle = () => {
     if (!orden) return
     setGenerandoPDF(true)
     try {
-      const datosReporteParaPDF = orden.datosReporte || datosReporte
+      // Merge: priorizar datos guardados en orden; descripcionAdicional desde BD o estado local
+      const datosReporteParaPDF = {
+        ...datosReporte,
+        ...(orden.datosReporte || {}),
+        descripcionAdicional: (orden.datosReporte?.descripcionAdicional ?? descripcionAdicional) || '',
+      }
       await exportarOrdenTrabajoPDF(orden, datosReporteParaPDF)
     } catch (err) {
       const msg = err?.message || err?.toString?.() || 'Error desconocido'
@@ -521,10 +546,11 @@ export const OrdenDetalle = () => {
         trabajoRealizado += `Observaciones: ${datosReporte.observaciones}\n`
       }
 
-      // Construir objeto datosReporte completo con firmas
+      // Construir objeto datosReporte completo con firmas y descripción adicional
       // La firma del encargado NO se guarda aquí, solo se agrega desde la vista del jefe de mantenimiento
       const datosReporteCompleto = {
         ...datosReporte,
+        descripcionAdicional: orden.datosReporte?.descripcionAdicional ?? descripcionAdicional ?? '',
         firmas: {
           ejecutante: firmas.ejecutante,
           solicitante: firmas.solicitante,
@@ -691,10 +717,18 @@ export const OrdenDetalle = () => {
         </Card>
       )}
 
-      {/* Card simple para otros usuarios (operarios, etc.) */}
+      {/* Card simple para otros usuarios (operarios, etc.) - Incluye descripción adicional cuando existe */}
       {!esJefe && (
         <Card title={tituloDisplay(orden.titulo) || orden.descripcion || 'Sin título'}>
           <p className="orden-detalle__desc">{orden.descripcion || tituloDisplay(orden.titulo) || 'Sin descripción.'}</p>
+          {(orden.datosReporte?.descripcionAdicional ?? descripcionAdicional ?? '').toString().trim() && (
+            <div className="orden-detalle__desc-adicional" style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+              <strong>Descripción adicional (Instrucciones del Jefe de Mantenimiento):</strong>
+              <p className="orden-detalle__texto" style={{ whiteSpace: 'pre-wrap', marginTop: '0.5rem' }}>
+                {(orden.datosReporte?.descripcionAdicional ?? descripcionAdicional ?? '').toString().trim()}
+              </p>
+            </div>
+          )}
         </Card>
       )}
 
@@ -1119,7 +1153,7 @@ export const OrdenDetalle = () => {
               </button>
             </Card>
 
-            <Card title="Repuestos">
+            <Card title="Repuestos utilizados">
               {datosReporte.repuestos.map((rep, idx) => (
                 <div key={idx} className="orden-detalle__op-item">
                   <div className="orden-detalle__op-header">

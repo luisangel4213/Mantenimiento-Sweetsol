@@ -339,37 +339,89 @@ export async function exportarOrdenTrabajoPDF(
   y = doc.lastAutoTable.finalY + 6
   y = ensureSpace(doc, y, headerOpts)
 
-  // ——— 4. Operaciones ejecutadas no planeadas (solo borde exterior, celdas vacías para escritura manual) ———
+  // ——— 4. Operaciones ejecutadas no planeadas (tabla con datos reales: Ítem, Descripción, Hora inicio, Hora fin, Horas reales) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('4. Operaciones Ejecutadas No Planeadas', MARGIN, y)
   y += 5
 
+  doc.setFont('helvetica', 'normal')
+  const opsNoPlaneadas = datosReporte.operacionesNoPlaneadas && datosReporte.operacionesNoPlaneadas.length > 0
+    ? datosReporte.operacionesNoPlaneadas.filter((op) => (op.descripcion || op.horaInicio || op.horaFin || op.horasReales))
+    : []
+  const opsNoPlaneadasData = opsNoPlaneadas.length > 0
+    ? opsNoPlaneadas.map((op, idx) => [
+        idx + 1,
+        (op.descripcion || '').replace(/\n/g, ' ').trim() || '',
+        op.horaInicio ? new Date(`2000-01-01T${op.horaInicio}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+        op.horaFin ? new Date(`2000-01-01T${op.horaFin}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+        op.horasReales || '',
+      ])
+    : [[1, '', '', '', '']]
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Ítem', 'Descripción (espacio para escritura manual)']],
-    body: [
-      [1, ''],
-      ['', ''],
-      ['', ''],
-      ['', ''],
-    ],
+    head: [['Ítem', 'Descripción', 'Hora inicio', 'Hora fin', 'Horas reales']],
+    body: opsNoPlaneadasData,
     theme: 'plain',
-    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
-    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3 },
-    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 'auto' } },
+    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 2 },
+    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 2 },
+    columnStyles: {
+      0: { cellWidth: 12 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 24 },
+      4: { cellWidth: 24 },
+    },
   })
   drawTableOuterBorder(doc, y)
   y = doc.lastAutoTable.finalY + 6
   y = ensureSpace(doc, y, headerOpts)
 
-  // ——— 6. Observaciones Técnicas (4 renglones vacíos, solo borde exterior) ———
+  // ——— 5. Repuestos utilizados ———
+  doc.setFontSize(FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('5. Repuestos utilizados', MARGIN, y)
+  y += 5
+
+  doc.setFont('helvetica', 'normal')
+  const repuestos = datosReporte.repuestos && datosReporte.repuestos.length > 0
+    ? datosReporte.repuestos.filter((r) => (r.codigo || r.descripcion || r.cantidad))
+    : []
+  const repuestosData = repuestos.length > 0
+    ? repuestos.map((r) => [
+        (r.codigo || '').trim() || '—',
+        (r.descripcion || '').trim() || '—',
+        (r.cantidad || '').toString().trim() || '—',
+      ])
+    : [['—', '—', '—']]
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [['Código del repuesto', 'Descripción del repuesto', 'Cantidad utilizada']],
+    body: repuestosData,
+    theme: 'plain',
+    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
+    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 35 } },
+  })
+  drawTableOuterBorder(doc, y)
+  y = doc.lastAutoTable.finalY + 6
+  y = ensureSpace(doc, y, headerOpts)
+
+  // ——— 6. Observaciones Técnicas (contenido guardado o espacio para escritura manual) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('6. Observaciones Técnicas', MARGIN, y)
   y += 5
 
+  doc.setFont('helvetica', 'normal')
+  const observaciones = (datosReporte.observaciones || '').trim()
+  if (observaciones) {
+    const lineasObs = doc.splitTextToSize(observaciones, PAGE_WIDTH - 2 * MARGIN - 4)
+    doc.text(lineasObs, MARGIN, y)
+    y += lineasObs.length * 5 + 6
+  }
   const obsLineHeight = 6
   const obsHeight = 4 * obsLineHeight + 6
   if (y + obsHeight > BODY_MAX_Y) {
@@ -377,13 +429,16 @@ export async function exportarOrdenTrabajoPDF(
     drawHeaderOrdenTrabajo(doc, headerOpts)
     y = BODY_START_Y
   }
-  doc.setDrawColor(180, 180, 180)
-  doc.setLineWidth(0.2)
-  doc.rect(MARGIN, y, PAGE_WIDTH - 2 * MARGIN, obsHeight)
-  for (let i = 1; i <= 4; i++) {
-    doc.line(MARGIN, y + i * obsLineHeight, PAGE_WIDTH - MARGIN, y + i * obsLineHeight)
+  if (!observaciones) {
+    doc.setDrawColor(180, 180, 180)
+    doc.setLineWidth(0.2)
+    doc.rect(MARGIN, y, PAGE_WIDTH - 2 * MARGIN, obsHeight)
+    for (let i = 1; i <= 4; i++) {
+      doc.line(MARGIN, y + i * obsLineHeight, PAGE_WIDTH - MARGIN, y + i * obsLineHeight)
+    }
   }
-  y += obsHeight + 6
+  y += observaciones ? 0 : obsHeight
+  y += 6
   y = ensureSpace(doc, y, headerOpts)
 
   // ——— 7. Firmas (solo borde exterior) ———

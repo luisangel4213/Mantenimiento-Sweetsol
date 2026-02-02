@@ -169,6 +169,14 @@ export const InformeTecnico = () => {
             </dl>
           </Card>
 
+          {(orden.datosReporte.descripcionAdicional || '').trim() && (
+            <Card title="3. Descripción adicional (Instrucciones del Jefe de Mantenimiento)">
+              <pre className="informe-tecnico__observaciones-text" style={{ whiteSpace: 'pre-wrap' }}>
+                {orden.datosReporte.descripcionAdicional.trim()}
+              </pre>
+            </Card>
+          )}
+
           {orden.datosReporte.operacionesPlaneadas && orden.datosReporte.operacionesPlaneadas.length > 0 && (
             <Card title="4. OPERACIONES PLANEADAS">
               <div className="informe-tecnico__table-wrapper">
@@ -238,7 +246,7 @@ export const InformeTecnico = () => {
           )}
 
           {orden.datosReporte.repuestos && orden.datosReporte.repuestos.length > 0 && (
-            <Card title="6. REPUESTOS">
+            <Card title="6. Repuestos utilizados">
               <div className="informe-tecnico__table-wrapper">
                 <table className="informe-tecnico__table">
                   <thead>
