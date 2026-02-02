@@ -3,14 +3,16 @@ import { Link } from 'react-router-dom'
 import { Card, Loader } from '../../components'
 import { useMantenimiento, useAuth } from '../../context'
 import { ESTADOS_ORDEN } from '../../constants'
-import { exportarReporteMasivoPDF } from '../../utils'
+import { exportarReporteMasivoPDF, exportarReporteMasivoExcel, exportarOrdenTrabajoPDF } from '../../utils'
 import { mantenimientoService } from '../../services'
 import './Reportes.css'
 
 export const Reportes = () => {
   const { user } = useAuth()
   const { ordenes, loading, fetchOrdenes } = useMantenimiento()
-  const [generandoMasivo, setGenerandoMasivo] = useState(false)
+  const [formatoExportando, setFormatoExportando] = useState(null) // 'pdf' | 'excel' | null
+  const [descargandoPDFs, setDescargandoPDFs] = useState(false)
+  const [ordenesSeleccionadasPDF, setOrdenesSeleccionadasPDF] = useState(new Set())
   const [filtroEstado, setFiltroEstado] = useState('completada')
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
@@ -61,15 +63,20 @@ export const Reportes = () => {
     setOrdenesFiltradas(filtradas)
   }
 
-  const handleGenerarMasivo = async () => {
+  const opcionesReporte = {
+    tipoOrden: 'Orden de mantenimiento',
+    grupoPlanificador: 'Producción',
+    responsablePtoTriba: 'Mantenimiento',
+    usuarioGenera: user?.nombre || user?.usuario || '—',
+  }
+
+  const handleGenerarMasivoPDF = async () => {
     if (ordenesFiltradas.length === 0) {
-      alert('No hay órdenes seleccionadas para generar el reporte masivo')
+      alert('No hay órdenes seleccionadas para generar el reporte')
       return
     }
-
-    setGenerandoMasivo(true)
+    setFormatoExportando('pdf')
     try {
-      // Cargar datos completos de cada orden
       const ordenesCompletas = await Promise.all(
         ordenesFiltradas.map(async (orden) => {
           try {
@@ -80,19 +87,85 @@ export const Reportes = () => {
           }
         })
       )
-
-      // Generar reporte masivo (diseño corporativo: encabezado, tabla, pie de página)
-      await exportarReporteMasivoPDF(ordenesCompletas, {
-        tipoOrden: 'Orden de mantenimiento',
-        grupoPlanificador: 'Producción',
-        responsablePtoTriba: 'Mantenimiento',
-        usuarioGenera: user?.nombre || user?.usuario || '—',
-      })
+      await exportarReporteMasivoPDF(ordenesCompletas, opcionesReporte)
     } catch (err) {
-      console.error('Error al generar reporte masivo:', err)
-      alert('Error al generar el reporte masivo. Por favor, intente nuevamente.')
+      console.error('Error al generar reporte PDF:', err)
+      alert('Error al generar el reporte. Por favor, intente nuevamente.')
     } finally {
-      setGenerandoMasivo(false)
+      setFormatoExportando(null)
+    }
+  }
+
+  const handleGenerarMasivoExcel = async () => {
+    if (ordenesFiltradas.length === 0) {
+      alert('No hay órdenes seleccionadas para generar el reporte')
+      return
+    }
+    setFormatoExportando('excel')
+    try {
+      const ordenesCompletas = await Promise.all(
+        ordenesFiltradas.map(async (orden) => {
+          try {
+            const res = await mantenimientoService.getOrdenById(orden.id)
+            return res.data
+          } catch {
+            return orden
+          }
+        })
+      )
+      exportarReporteMasivoExcel(ordenesCompletas, opcionesReporte)
+    } catch (err) {
+      console.error('Error al generar reporte Excel:', err)
+      alert('Error al generar el reporte. Por favor, intente nuevamente.')
+    } finally {
+      setFormatoExportando(null)
+    }
+  }
+
+  const toggleSeleccionPDF = (ordenId) => {
+    setOrdenesSeleccionadasPDF((prev) => {
+      const nuevo = new Set(prev)
+      if (nuevo.has(ordenId)) nuevo.delete(ordenId)
+      else nuevo.add(ordenId)
+      return nuevo
+    })
+  }
+
+  const seleccionarTodosPDF = () => {
+    if (ordenesSeleccionadasPDF.size === ordenesFiltradas.length) {
+      setOrdenesSeleccionadasPDF(new Set())
+    } else {
+      setOrdenesSeleccionadasPDF(new Set(ordenesFiltradas.map((o) => o.id)))
+    }
+  }
+
+  const handleDescargarPDFsSeleccionados = async () => {
+    const ids = Array.from(ordenesSeleccionadasPDF)
+    if (ids.length === 0) {
+      alert('Seleccione al menos una orden para descargar')
+      return
+    }
+    setDescargandoPDFs(true)
+    try {
+      const ordenesParaDescargar = ordenesFiltradas.filter((o) => ids.includes(o.id))
+      for (let i = 0; i < ordenesParaDescargar.length; i++) {
+        try {
+          const res = await mantenimientoService.getOrdenById(ordenesParaDescargar[i].id)
+          const ordenCompleta = res.data
+          await exportarOrdenTrabajoPDF(ordenCompleta, ordenCompleta.datosReporte)
+          if (i < ordenesParaDescargar.length - 1) {
+            await new Promise((r) => setTimeout(r, 500))
+          }
+        } catch (err) {
+          console.error(`Error al descargar orden #${ordenesParaDescargar[i].id}:`, err)
+        }
+      }
+      setOrdenesSeleccionadasPDF(new Set())
+    } catch (err) {
+      console.error('Error al descargar PDFs:', err)
+      alert('Error al descargar los reportes. Por favor, intente nuevamente.')
+    } finally {
+      setDescargandoPDFs(false)
     }
   }
 
@@ -100,12 +173,8 @@ export const Reportes = () => {
     <div className="reportes">
       <h1 className="page-title">Reportes</h1>
 
-      {/* Reporte Masivo */}
-      <Card title="Reporte Masivo de Órdenes de Trabajo">
-        <p className="reportes__text">
-          Genere un reporte PDF que incluya todas las órdenes de trabajo seleccionadas. Cada orden se mostrará en una página separada.
-        </p>
-
+      {/* Filtros compartidos */}
+      <Card title="Filtros">
         <div className="reportes__filtros">
           <div className="reportes__filtro">
             <label className="reportes__label">
@@ -124,7 +193,6 @@ export const Reportes = () => {
               </select>
             </label>
           </div>
-
           <div className="reportes__filtro">
             <label className="reportes__label">
               Fecha desde
@@ -136,7 +204,6 @@ export const Reportes = () => {
               />
             </label>
           </div>
-
           <div className="reportes__filtro">
             <label className="reportes__label">
               Fecha hasta
@@ -149,21 +216,92 @@ export const Reportes = () => {
             </label>
           </div>
         </div>
+        <p className="reportes__resumen-p">
+          <strong>Órdenes filtradas: {ordenesFiltradas.length}</strong>
+        </p>
+      </Card>
 
+      {/* Descargas Masivas: todos los reportes en un solo archivo */}
+      <Card title="Descargas Masivas">
+        <p className="reportes__text">
+          Descargue todas las órdenes filtradas en un solo archivo (PDF o Excel).
+        </p>
+        <div className="reportes__opciones" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+          <button
+            type="button"
+            className="reportes__btn reportes__btn--primary"
+            onClick={handleGenerarMasivoPDF}
+            disabled={formatoExportando !== null || ordenesFiltradas.length === 0}
+          >
+            {formatoExportando === 'pdf' ? 'Generando...' : 'Descargar PDF'}
+          </button>
+          <button
+            type="button"
+            className="reportes__btn reportes__btn--secondary"
+            onClick={handleGenerarMasivoExcel}
+            disabled={formatoExportando !== null || ordenesFiltradas.length === 0}
+          >
+            {formatoExportando === 'excel' ? 'Generando...' : 'Descargar Excel'}
+          </button>
+        </div>
+      </Card>
+
+      {/* Descargas PDF: reporte individual por orden */}
+      <Card title="Descargas PDF">
+        <p className="reportes__text">
+          Descargue el reporte (Orden de Trabajo) de una o varias órdenes. Cada orden se descargará como un archivo PDF individual.
+        </p>
         <div className="reportes__resumen">
           <p>
-            <strong>Órdenes seleccionadas: {ordenesFiltradas.length}</strong>
+            <strong>Órdenes filtradas: {ordenesFiltradas.length}</strong>
+            {ordenesFiltradas.length > 0 && (
+              <>
+                {' — '}
+                <button
+                  type="button"
+                  className="reportes__link-btn"
+                  onClick={seleccionarTodosPDF}
+                >
+                  {ordenesSeleccionadasPDF.size === ordenesFiltradas.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
+                </button>
+              </>
+            )}
           </p>
         </div>
 
-        <button
-          type="button"
-          className="reportes__btn reportes__btn--primary"
-          onClick={handleGenerarMasivo}
-          disabled={generandoMasivo || ordenesFiltradas.length === 0}
-        >
-          {generandoMasivo ? 'Generando reporte...' : `Generar Reporte Masivo (${ordenesFiltradas.length} órdenes)`}
-        </button>
+        {loading ? (
+          <Loader />
+        ) : ordenesFiltradas.length === 0 ? (
+          <p className="reportes__empty">No hay órdenes para mostrar. Ajuste los filtros.</p>
+        ) : (
+          <>
+            <ul className="reportes__list reportes__list--selectable">
+              {ordenesFiltradas.map((o) => (
+                <li key={o.id} className="reportes__item reportes__item--row">
+                  <label className="reportes__checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={ordenesSeleccionadasPDF.has(o.id)}
+                      onChange={() => toggleSeleccionPDF(o.id)}
+                    />
+                    <span className="reportes__item-text">
+                      Orden #{o.id} — {o.titulo || o.descripcion || 'Sin título'}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="reportes__btn reportes__btn--primary"
+              onClick={handleDescargarPDFsSeleccionados}
+              disabled={descargandoPDFs || ordenesSeleccionadasPDF.size === 0}
+              style={{ marginTop: '1rem' }}
+            >
+              {descargandoPDFs ? 'Descargando...' : `Descargar PDF (${ordenesSeleccionadasPDF.size} seleccionadas)`}
+            </button>
+          </>
+        )}
       </Card>
 
       {/* Informe Técnico: solo órdenes en estado Proceso cerrado */}

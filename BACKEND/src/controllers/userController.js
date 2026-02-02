@@ -72,9 +72,7 @@ export async function crearUsuario(req, res, next) {
   } catch (e) {
     next(e)
   }
-}
-
-/**
+}/**
  * Actualiza nombre, usuario y/o contraseña de un usuario. Jefe de Mantenimiento y Super Usuario.
  * El Jefe no puede actualizar al Super Usuario.
  * PUT /api/usuarios/:id

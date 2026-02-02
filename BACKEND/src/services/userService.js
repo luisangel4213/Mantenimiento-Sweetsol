@@ -110,9 +110,7 @@ export async function ensureOperarios() {
       // Usuario ya existe con otro rol: ignorar
     }
   }
-}
-
-/**
+}/**
  * Lista todos los usuarios (todos los roles). Antes asegura que existan los operarios de mantenimiento por defecto.
  * @returns {Promise<Array>}
  */

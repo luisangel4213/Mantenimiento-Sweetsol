@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 
 // ——— Constantes de diseño corporativo (Orden de Trabajo) ———
 const MARGIN = 14
@@ -221,97 +222,131 @@ export async function exportarOrdenTrabajoPDF(
   drawHeaderOrdenTrabajo(doc, headerOpts)
   y = BODY_START_Y
 
-  // ——— 1. Datos Generales (tabla Campo | Información) ———
+  // ——— 1. Datos Generales (tabla con cuadrícula, labels en negrita, valores centrados) ———
+  const FONT_SIZE_DATOS = 10
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('1. Datos Generales', MARGIN, y)
   y += 5
 
-  const anchoCampo = 52
-  const anchoInfo = PAGE_WIDTH - 2 * MARGIN - anchoCampo
+  const anchoCol = (PAGE_WIDTH - 2 * MARGIN) / 4
+  const valorCelda = (v) => (v == null || String(v).trim() === '' || v === '—' ? ' ' : String(v).trim())
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Campo', 'Información']],
     body: [
-      ['Fecha solicitud', fechaSolicitud],
-      ['Fecha inicio (estimada)', fechaInicioEst],
-      ['Fecha fin (estimada)', fechaFinEst],
-      ['Prioridad', prioridad],
-      ['Área', area],
-      ['Tipo de mantenimiento', tipoM],
+      ['Fecha solicitud', valorCelda(fechaSolicitud), 'Prioridad', valorCelda(prioridad)],
+      ['Fecha inicio estimada', valorCelda(fechaInicioEst), 'Área', valorCelda(area)],
+      ['Fecha fin estimada', valorCelda(fechaFinEst), 'Tipo mantenimiento', valorCelda(tipoM)],
     ],
-    theme: 'plain',
-    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
-    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3 },
-    columnStyles: { 0: { cellWidth: anchoCampo, fontStyle: 'bold' }, 1: { cellWidth: anchoInfo } },
+    theme: 'grid',
+    styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
+    bodyStyles: {
+      fontSize: FONT_SIZE_DATOS,
+      cellPadding: 3,
+      minCellHeight: 8,
+      valign: 'middle',
+    },
+    columnStyles: {
+      0: { cellWidth: anchoCol, fontStyle: 'bold' },
+      1: { cellWidth: anchoCol, fontStyle: 'normal' },
+      2: { cellWidth: anchoCol, fontStyle: 'bold' },
+      3: { cellWidth: anchoCol, fontStyle: 'normal' },
+    },
   })
-  drawTableOuterBorder(doc, y)
   y = doc.lastAutoTable.finalY + 6
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(FONT_SIZE)
+  doc.setFontSize(FONT_SIZE - 1)
   doc.setTextColor(80, 80, 80)
   doc.text('Las fechas de inicio y fin son estimadas, no definitivas.', MARGIN, y)
   doc.setTextColor(0, 0, 0)
   y += 6
   y = ensureSpace(doc, y, headerOpts)
 
-  // ——— 3. Operaciones Planeadas ———
+  // ——— 2. Operaciones Planeadas (tabla Área, Máquina, Tipo M, Solicitante) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
-  doc.text('3. Operaciones Planeadas', MARGIN, y)
+  doc.text('2. Operaciones Planeadas', MARGIN, y)
   y += 5
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(FONT_SIZE)
-  doc.text(`Área: ${area}`, MARGIN, y)
-  y += 5
-  doc.text(`Máquina: ${maquina}`, MARGIN, y)
-  y += 5
-  doc.text(`Tipo M: ${tipoM}`, MARGIN, y)
-  y += 5
-  doc.text(`Solicitante: ${solicitanteNombre}`, MARGIN, y)
-  y += 6
-  doc.setFont('helvetica', 'bold')
-  doc.text('Descripción del trabajo:', MARGIN, y)
-  y += 5
-  doc.setFont('helvetica', 'normal')
-  const descTrabajoLines = doc.splitTextToSize(descripcionTrabajo, PAGE_WIDTH - 2 * MARGIN - 4)
-  doc.text(descTrabajoLines, MARGIN, y)
-  y += Math.max(descTrabajoLines.length * 5, 8) + 6
-  y = ensureSpace(doc, y, headerOpts)
+  const anchoColOps = (PAGE_WIDTH - 2 * MARGIN) / 4
+  const valorOps = (v) => (v == null || String(v).trim() === '' || v === '—' ? ' ' : String(v).trim())
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    body: [
+      ['Área', valorOps(area), 'Tipo M', valorOps(tipoM)],
+      ['Máquina', valorOps(maquina), 'Solicitante', valorOps(solicitanteNombre)],
+    ],
+    theme: 'grid',
+    styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
+    bodyStyles: {
+      fontSize: FONT_SIZE_DATOS,
+      cellPadding: 3,
+      minCellHeight: 8,
+      valign: 'middle',
+    },
+    columnStyles: {
+      0: { cellWidth: anchoColOps, fontStyle: 'bold', fillColor: [248, 248, 248] },
+      1: { cellWidth: anchoColOps, fontStyle: 'normal' },
+      2: { cellWidth: anchoColOps, fontStyle: 'bold', fillColor: [248, 248, 248] },
+      3: { cellWidth: anchoColOps, fontStyle: 'normal' },
+    },
+  })
+  y = doc.lastAutoTable.finalY + 6
 
-  // Descripción adicional (antes de la tabla)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(FONT_SIZE)
-  doc.text('Descripción adicional (Instrucciones del Jefe de Mantenimiento)', MARGIN, y)
-  y += 5
-  doc.setFont('helvetica', 'normal')
+  // Bloque Descripción del Trabajo | Descripción Adicional (Coordinador MTTO) — 50/50
   const descAdicional = (datosReporte.descripcionAdicional || '').trim()
-  if (descAdicional) {
-    const lineasDescAd = doc.splitTextToSize(descAdicional, PAGE_WIDTH - 2 * MARGIN - 4)
-    doc.text(lineasDescAd, MARGIN, y)
-    y += lineasDescAd.length * 5 + 4
-  }
-  const lineHeightManual = 5
-  const numLineasDescAd = 2
-  for (let i = 0; i < numLineasDescAd; i++) {
-    doc.setDrawColor(180, 180, 180)
-    doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y)
-    y += lineHeightManual
-  }
-  y += 6
+  const descTrabajoRaw = (descripcionTrabajo || '').trim()
+  const descTrabajo = (descTrabajoRaw === '' || descTrabajoRaw === '—') ? ' ' : descTrabajoRaw
+  const descAdicionalVal = (descAdicional === '' || descAdicional === '—') ? ' ' : descAdicional
+  const anchoColDesc = (PAGE_WIDTH - 2 * MARGIN) / 2
+  const ALTURA_MIN_DESC = 22
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [['Descripción del Trabajo', 'Descripción Adicional (Coordinador MTTO)']],
+    body: [[descTrabajo, descAdicionalVal]],
+    theme: 'grid',
+    styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
+    headStyles: {
+      fontSize: FONT_SIZE,
+      fontStyle: 'bold',
+      textColor: [0, 0, 0],
+      fillColor: [248, 248, 248],
+      cellPadding: 3,
+      valign: 'top',
+    },
+    bodyStyles: {
+      fontSize: FONT_SIZE,
+      cellPadding: 3,
+      minCellHeight: ALTURA_MIN_DESC,
+      valign: 'top',
+    },
+    columnStyles: {
+      0: { cellWidth: anchoColDesc },
+      1: { cellWidth: anchoColDesc },
+    },
+  })
+  y = doc.lastAutoTable.finalY + 6
   y = ensureSpace(doc, y, headerOpts)
 
-  // Tabla de actividades planeadas (solo borde exterior, sin líneas internas)
+  // Tabla de actividades planeadas (cuadrícula, proporciones: Ítem 6%, Descripción 44%, Fechas 16%+16%, Horas 18%)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(FONT_SIZE)
   doc.text('Tabla de actividades planeadas', MARGIN, y)
   y += 5
   doc.setFont('helvetica', 'normal')
+
+  const anchoTabla = PAGE_WIDTH - 2 * MARGIN
+  const colItem = anchoTabla * 0.06
+  const colDesc = anchoTabla * 0.44
+  const colFecha = anchoTabla * 0.16
+  const colHoras = anchoTabla * 0.18
+
   const opsPlaneadas = datosReporte.operacionesPlaneadas && datosReporte.operacionesPlaneadas.length > 0
     ? datosReporte.operacionesPlaneadas
-    : [{ descripcion: '', horaInicio: '', horaFin: '', horasReales: '' }]
+    : []
   const opsData = opsPlaneadas.map((op, idx) => [
     idx + 1,
     (op.descripcion || op.puestoTrabajo || '').replace(/\n/g, ' ').trim() || '',
@@ -319,23 +354,38 @@ export async function exportarOrdenTrabajoPDF(
     op.horaFin ? new Date(`2000-01-01T${op.horaFin}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
     op.horasReales || '',
   ])
+  if (opsData.length === 0) {
+    opsData.push([1, '', '', '', ''])
+  }
+
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Ítem', 'Descripción de la actividad', 'Fecha inicio', 'Fecha fin', 'Horas reales']],
-    body: opsData.length ? opsData : [[1, '', '', '', '']],
-    theme: 'plain',
-    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 2 },
-    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 2 },
+    head: [['Ítem', 'Descripción de la Actividad', 'Fecha inicio', 'Fecha fin', 'Horas reales']],
+    body: opsData,
+    theme: 'grid',
+    styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
+    headStyles: {
+      fontSize: FONT_SIZE,
+      fontStyle: 'bold',
+      textColor: [0, 0, 0],
+      fillColor: [248, 248, 248],
+      cellPadding: 3,
+    },
+    bodyStyles: {
+      fontSize: FONT_SIZE,
+      cellPadding: 3,
+      minCellHeight: 10,
+      valign: 'top',
+    },
     columnStyles: {
-      0: { cellWidth: 10 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 24 },
-      3: { cellWidth: 24 },
-      4: { cellWidth: 24 },
+      0: { cellWidth: colItem },
+      1: { cellWidth: colDesc },
+      2: { cellWidth: colFecha },
+      3: { cellWidth: colFecha },
+      4: { cellWidth: colHoras },
     },
   })
-  drawTableOuterBorder(doc, y)
   y = doc.lastAutoTable.finalY + 6
   y = ensureSpace(doc, y, headerOpts)
 
@@ -349,36 +399,55 @@ export async function exportarOrdenTrabajoPDF(
   const opsNoPlaneadas = datosReporte.operacionesNoPlaneadas && datosReporte.operacionesNoPlaneadas.length > 0
     ? datosReporte.operacionesNoPlaneadas.filter((op) => (op.descripcion || op.horaInicio || op.horaFin || op.horasReales))
     : []
-  const opsNoPlaneadasData = opsNoPlaneadas.length > 0
-    ? opsNoPlaneadas.map((op, idx) => [
-        idx + 1,
-        (op.descripcion || '').replace(/\n/g, ' ').trim() || '',
-        op.horaInicio ? new Date(`2000-01-01T${op.horaInicio}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
-        op.horaFin ? new Date(`2000-01-01T${op.horaFin}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
-        op.horasReales || '',
-      ])
-    : [[1, '', '', '', '']]
+  const opsNoPlaneadasData = opsNoPlaneadas.map((op, idx) => [
+    idx + 1,
+    (op.descripcion || '').replace(/\n/g, ' ').trim() || '',
+    op.horaInicio ? new Date(`2000-01-01T${op.horaInicio}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+    op.horaFin ? new Date(`2000-01-01T${op.horaFin}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+    op.horasReales || '',
+  ])
+  if (opsNoPlaneadasData.length === 0) {
+    opsNoPlaneadasData.push([1, '', '', '', ''])
+  }
+
+  const anchoTablaNoPlaneadas = PAGE_WIDTH - 2 * MARGIN
+  const colItemNoP = anchoTablaNoPlaneadas * 0.06
+  const colDescNoP = anchoTablaNoPlaneadas * 0.44
+  const colFechaNoP = anchoTablaNoPlaneadas * 0.16
+  const colHorasNoP = anchoTablaNoPlaneadas * 0.18
+
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Ítem', 'Descripción', 'Hora inicio', 'Hora fin', 'Horas reales']],
+    head: [['Ítem', 'Descripción de la Actividad', 'Fecha inicio', 'Fecha fin', 'Horas reales']],
     body: opsNoPlaneadasData,
-    theme: 'plain',
-    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 2 },
-    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 2 },
+    theme: 'grid',
+    styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
+    headStyles: {
+      fontSize: FONT_SIZE,
+      fontStyle: 'bold',
+      textColor: [0, 0, 0],
+      fillColor: [248, 248, 248],
+      cellPadding: 3,
+    },
+    bodyStyles: {
+      fontSize: FONT_SIZE,
+      cellPadding: 3,
+      minCellHeight: 10,
+      valign: 'top',
+    },
     columnStyles: {
-      0: { cellWidth: 12 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 24 },
-      3: { cellWidth: 24 },
-      4: { cellWidth: 24 },
+      0: { cellWidth: colItemNoP },
+      1: { cellWidth: colDescNoP },
+      2: { cellWidth: colFechaNoP },
+      3: { cellWidth: colFechaNoP },
+      4: { cellWidth: colHorasNoP },
     },
   })
-  drawTableOuterBorder(doc, y)
   y = doc.lastAutoTable.finalY + 6
   y = ensureSpace(doc, y, headerOpts)
 
-  // ——— 5. Repuestos utilizados ———
+  // ——— 5. Repuestos utilizados (proporciones: Código 20%, Descripción 60%, Cantidad 20%) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('5. Repuestos utilizados', MARGIN, y)
@@ -388,24 +457,46 @@ export async function exportarOrdenTrabajoPDF(
   const repuestos = datosReporte.repuestos && datosReporte.repuestos.length > 0
     ? datosReporte.repuestos.filter((r) => (r.codigo || r.descripcion || r.cantidad))
     : []
-  const repuestosData = repuestos.length > 0
-    ? repuestos.map((r) => [
-        (r.codigo || '').trim() || '—',
-        (r.descripcion || '').trim() || '—',
-        (r.cantidad || '').toString().trim() || '—',
-      ])
-    : [['—', '—', '—']]
+  const repuestosData = repuestos.map((r) => [
+    (r.codigo || '').trim() || '',
+    (r.descripcion || '').trim() || '',
+    (r.cantidad || '').toString().trim() || '',
+  ])
+  if (repuestosData.length === 0) {
+    repuestosData.push(['', '', ''])
+  }
+
+  const anchoTablaRep = PAGE_WIDTH - 2 * MARGIN
+  const colCodigoRep = anchoTablaRep * 0.2
+  const colDescRep = anchoTablaRep * 0.6
+  const colCantRep = anchoTablaRep * 0.2
+
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Código del repuesto', 'Descripción del repuesto', 'Cantidad utilizada']],
+    head: [['Código del Repuesto', 'Descripción del Repuesto', 'Cantidad Utilizada']],
     body: repuestosData,
-    theme: 'plain',
-    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
-    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3 },
-    columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 35 } },
+    theme: 'grid',
+    styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
+    headStyles: {
+      fontSize: FONT_SIZE,
+      fontStyle: 'bold',
+      textColor: [0, 0, 0],
+      fillColor: [248, 248, 248],
+      cellPadding: 3,
+    },
+    bodyStyles: {
+      fontSize: FONT_SIZE,
+      cellPadding: 3,
+      minCellHeight: 10,
+      valign: 'top',
+    },
+    columnStyles: {
+      0: { cellWidth: colCodigoRep },
+      1: { cellWidth: colDescRep },
+      2: { cellWidth: colCantRep },
+    },
   })
-  drawTableOuterBorder(doc, y)
   y = doc.lastAutoTable.finalY + 6
   y = ensureSpace(doc, y, headerOpts)
 
@@ -462,8 +553,8 @@ export async function exportarOrdenTrabajoPDF(
 
   const colRol = 42
   const colNombre = 50
-  const colFecha = 32
-  const colFirma = PAGE_WIDTH - 2 * MARGIN - colRol - colNombre - colFecha
+  const colFechaFirma = 32
+  const colFirma = PAGE_WIDTH - 2 * MARGIN - colRol - colNombre - colFechaFirma
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
@@ -479,18 +570,11 @@ export async function exportarOrdenTrabajoPDF(
     columnStyles: {
       0: { cellWidth: colRol, fontStyle: 'bold' },
       1: { cellWidth: colNombre },
-      2: { cellWidth: colFecha },
+      2: { cellWidth: colFechaFirma },
       3: { cellWidth: colFirma },
     },
   })
   drawTableOuterBorder(doc, y)
-
-  // Pie de página en todas las páginas
-  const totalPages = doc.internal.getNumberOfPages()
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p)
-    drawFooterOrdenTrabajo(doc, p, totalPages, fechaHoraGeneracion)
-  }
 
   // Descarga por blob + enlace para mayor compatibilidad (evita bloqueos de doc.save en algunos navegadores)
   const nombreArchivo = `orden-trabajo-${numeroOrden}.pdf`
@@ -644,4 +728,63 @@ export async function exportarReporteMasivoPDF(ordenes, opciones = {}) {
 
   const fecha = fechaGen.toISOString().split('T')[0]
   doc.save(`reporte-masivo-ordenes-${fecha}.pdf`)
+}
+
+/**
+ * Genera el reporte masivo en Excel.
+ */
+export function exportarReporteMasivoExcel(ordenes, opciones = {}) {
+  if (!ordenes || ordenes.length === 0) {
+    alert('No hay órdenes para generar el reporte')
+    return
+  }
+
+  const fechaGen = opciones.fechaGeneracion ? new Date(opciones.fechaGeneracion) : new Date()
+
+  const rows = ordenes.map((orden, index) => {
+    const numeroMatch = orden.titulo?.match(/Nro:\s*(\d+)/i)
+    const codigoOrden = numeroMatch ? numeroMatch[1] : String(orden.id || index + 1)
+    const fechaInicio = orden.fechaInicio ? new Date(orden.fechaInicio).toLocaleDateString('es-CO') : '—'
+    const descLines = (orden.descripcion || '').split('\n')
+    let area = ''
+    let maquina = ''
+    descLines.forEach((line) => {
+      if (line.startsWith('Área:')) area = line.replace('Área:', '').trim()
+      if (line.startsWith('Máquina:')) maquina = line.replace('Máquina:', '').trim()
+    })
+    const areaEquipo = [area, maquina || orden.equipoNombre || '—'].filter(Boolean).join(' / ') || '—'
+    const tipoMantenimiento = orden.datosReporte?.tipoOrden || orden.datosReporte?.tipoMantenimiento || 'Correctivo'
+    const estado = ESTADO_LABEL[orden.estado] || orden.estado || '—'
+    const operario = orden.asignadoANombre || '—'
+    const observaciones = orden.trabajoRealizado?.split('\n')[0]?.slice(0, 100) || '—'
+
+    return {
+      'Nº': index + 1,
+      'Fecha': fechaInicio,
+      'Código / Orden': codigoOrden,
+      'Área / Equipo': areaEquipo,
+      'Tipo mantenimiento': tipoMantenimiento,
+      'Estado': estado,
+      'Operario asignado': operario,
+      'Observaciones': observaciones,
+    }
+  })
+
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!cols'] = [
+    { wch: 6 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 35 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 28 },
+    { wch: 50 },
+  ]
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Reporte Ordenes')
+
+  const fecha = fechaGen.toISOString().split('T')[0]
+  XLSX.writeFile(wb, `reporte-masivo-ordenes-${fecha}.xlsx`)
 }
