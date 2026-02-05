@@ -12,8 +12,10 @@ const FOOTER_Y = 279
 const BODY_MAX_Y = FOOTER_Y - 12
 const LOGO_WIDTH = 24
 const LOGO_HEIGHT = 10
-const FONT_SIZE = 11
-const ROW_HEIGHT_COMPACT = 5
+const FONT_SIZE = 9
+const FONT_SIZE_TABLAS = 8
+const CELL_PADDING = 2
+const ROW_HEIGHT_COMPACT = 4
 const NOMBRE_EMPRESA = 'SWEETSOL'
 const TITULO_ORDEN = 'SOLICITUD DE MANTENIMIENTO'
 const NOMBRE_SISTEMA = 'Sistema de Mantenimiento SweetSol'
@@ -211,6 +213,7 @@ export async function exportarOrdenTrabajoPDF(
   const maquina = infoDesc.maquina || orden.equipoNombre || '—'
   const tipoM = infoDesc.tipoM || tipoOrden || 'Correctivo'
   const solicitanteNombre = infoDesc.solicitanteNombre || '—'
+  const asignadoANombre = orden.asignadoANombre || '—'
   const descripcionTrabajo = infoDesc.descripcionReal || '—'
 
   const prioridadLabel = { baja: 'Baja', media: 'Media', alta: 'Alta' }
@@ -223,11 +226,10 @@ export async function exportarOrdenTrabajoPDF(
   y = BODY_START_Y
 
   // ——— 1. Datos Generales (tabla con cuadrícula, labels en negrita, valores centrados) ———
-  const FONT_SIZE_DATOS = 10
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('1. Datos Generales', MARGIN, y)
-  y += 5
+  y += 4
 
   const anchoCol = (PAGE_WIDTH - 2 * MARGIN) / 4
   const valorCelda = (v) => (v == null || String(v).trim() === '' || v === '—' ? ' ' : String(v).trim())
@@ -237,14 +239,15 @@ export async function exportarOrdenTrabajoPDF(
     body: [
       ['Fecha solicitud', valorCelda(fechaSolicitud), 'Prioridad', valorCelda(prioridad)],
       ['Fecha inicio estimada', valorCelda(fechaInicioEst), 'Área', valorCelda(area)],
-      ['Fecha fin estimada', valorCelda(fechaFinEst), 'Tipo mantenimiento', valorCelda(tipoM)],
+      ['Fecha fin estimada', valorCelda(fechaFinEst), 'Asignado', valorCelda(asignadoANombre)],
+      ['Tipo mantenimiento', valorCelda(tipoM), '', ''],
     ],
     theme: 'grid',
     styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
     bodyStyles: {
-      fontSize: FONT_SIZE_DATOS,
-      cellPadding: 3,
-      minCellHeight: 8,
+      fontSize: FONT_SIZE_TABLAS,
+      cellPadding: CELL_PADDING,
+      minCellHeight: 6,
       valign: 'middle',
     },
     columnStyles: {
@@ -254,20 +257,14 @@ export async function exportarOrdenTrabajoPDF(
       3: { cellWidth: anchoCol, fontStyle: 'normal' },
     },
   })
-  y = doc.lastAutoTable.finalY + 6
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(FONT_SIZE - 1)
-  doc.setTextColor(80, 80, 80)
-  doc.text('Las fechas de inicio y fin son estimadas, no definitivas.', MARGIN, y)
-  doc.setTextColor(0, 0, 0)
-  y += 6
+  y = doc.lastAutoTable.finalY + 4
   y = ensureSpace(doc, y, headerOpts)
 
   // ——— 2. Operaciones Planeadas (tabla Área, Máquina, Tipo M, Solicitante) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('2. Operaciones Planeadas', MARGIN, y)
-  y += 5
+  y += 4
 
   const anchoColOps = (PAGE_WIDTH - 2 * MARGIN) / 4
   const valorOps = (v) => (v == null || String(v).trim() === '' || v === '—' ? ' ' : String(v).trim())
@@ -281,9 +278,9 @@ export async function exportarOrdenTrabajoPDF(
     theme: 'grid',
     styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
     bodyStyles: {
-      fontSize: FONT_SIZE_DATOS,
-      cellPadding: 3,
-      minCellHeight: 8,
+      fontSize: FONT_SIZE_TABLAS,
+      cellPadding: CELL_PADDING,
+      minCellHeight: 6,
       valign: 'middle',
     },
     columnStyles: {
@@ -293,15 +290,19 @@ export async function exportarOrdenTrabajoPDF(
       3: { cellWidth: anchoColOps, fontStyle: 'normal' },
     },
   })
-  y = doc.lastAutoTable.finalY + 6
+  y = doc.lastAutoTable.finalY + 4
 
   // Bloque Descripción del Trabajo | Descripción Adicional (Coordinador MTTO) — 50/50
   const descAdicional = (datosReporte.descripcionAdicional || '').trim()
   const descTrabajoRaw = (descripcionTrabajo || '').trim()
   const descTrabajo = (descTrabajoRaw === '' || descTrabajoRaw === '—') ? ' ' : descTrabajoRaw
   const descAdicionalVal = (descAdicional === '' || descAdicional === '—') ? ' ' : descAdicional
+
+  // Texto que se copiará a la tabla de actividades planeadas (sin numerar, se manejará por filas):
+  const textoDescTrabajoTabla = (descTrabajoRaw && descTrabajoRaw !== '—') ? descTrabajoRaw.trim() : ''
+  const textoDescAdicionalTabla = (descAdicional && descAdicional !== '—') ? descAdicional.trim() : ''
   const anchoColDesc = (PAGE_WIDTH - 2 * MARGIN) / 2
-  const ALTURA_MIN_DESC = 22
+  const ALTURA_MIN_DESC = 14
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
@@ -310,16 +311,16 @@ export async function exportarOrdenTrabajoPDF(
     theme: 'grid',
     styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
     headStyles: {
-      fontSize: FONT_SIZE,
+      fontSize: FONT_SIZE_TABLAS,
       fontStyle: 'bold',
       textColor: [0, 0, 0],
       fillColor: [248, 248, 248],
-      cellPadding: 3,
+      cellPadding: CELL_PADDING,
       valign: 'top',
     },
     bodyStyles: {
-      fontSize: FONT_SIZE,
-      cellPadding: 3,
+      fontSize: FONT_SIZE_TABLAS,
+      cellPadding: CELL_PADDING,
       minCellHeight: ALTURA_MIN_DESC,
       valign: 'top',
     },
@@ -328,14 +329,14 @@ export async function exportarOrdenTrabajoPDF(
       1: { cellWidth: anchoColDesc },
     },
   })
-  y = doc.lastAutoTable.finalY + 6
+  y = doc.lastAutoTable.finalY + 4
   y = ensureSpace(doc, y, headerOpts)
 
   // Tabla de actividades planeadas (cuadrícula, proporciones: Ítem 6%, Descripción 44%, Fechas 16%+16%, Horas 18%)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(FONT_SIZE)
   doc.text('Tabla de actividades planeadas', MARGIN, y)
-  y += 5
+  y += 4
   doc.setFont('helvetica', 'normal')
 
   const anchoTabla = PAGE_WIDTH - 2 * MARGIN
@@ -347,35 +348,89 @@ export async function exportarOrdenTrabajoPDF(
   const opsPlaneadas = datosReporte.operacionesPlaneadas && datosReporte.operacionesPlaneadas.length > 0
     ? datosReporte.operacionesPlaneadas
     : []
-  const opsData = opsPlaneadas.map((op, idx) => [
-    idx + 1,
-    (op.descripcion || op.puestoTrabajo || '').replace(/\n/g, ' ').trim() || '',
-    op.horaInicio ? new Date(`2000-01-01T${op.horaInicio}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
-    op.horaFin ? new Date(`2000-01-01T${op.horaFin}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
-    op.horasReales || '',
-  ])
-  if (opsData.length === 0) {
-    opsData.push([1, '', '', '', ''])
+
+  // Determinar si ya hay descripciones manuales en la tabla
+  const hayDescripcionManual = opsPlaneadas.some((op) => (op.descripcion || '').trim() !== '')
+
+  const cuerpoActividades = []
+
+  if (opsPlaneadas.length > 0) {
+    // Hay filas definidas desde el formulario
+    opsPlaneadas.forEach((op, idx) => {
+      let descripcionActividad = (op.descripcion || op.puestoTrabajo || '').replace(/\n/g, ' ').trim() || ''
+
+      // Si NO hay descripción manual en ninguna fila, usamos las descripciones superiores:
+      if (!hayDescripcionManual) {
+        if (idx === 0 && textoDescTrabajoTabla) {
+          descripcionActividad = textoDescTrabajoTabla.replace(/\n/g, ' ').trim()
+        } else if (idx === 1 && textoDescAdicionalTabla) {
+          descripcionActividad = textoDescAdicionalTabla.replace(/\n/g, ' ').trim()
+        }
+      }
+
+      cuerpoActividades.push([
+        idx + 1,
+        descripcionActividad,
+        op.horaInicio ? new Date(`2000-01-01T${op.horaInicio}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+        op.horaFin ? new Date(`2000-01-01T${op.horaFin}`).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+        op.horasReales || '',
+      ])
+    })
+
+    // Si solo había una fila y tenemos descripción adicional, agregar una segunda fila automática (ítem 2)
+    if (!hayDescripcionManual && opsPlaneadas.length === 1 && textoDescAdicionalTabla) {
+      cuerpoActividades.push([
+        2,
+        textoDescAdicionalTabla.replace(/\n/g, ' ').trim(),
+        '',
+        '',
+        '',
+      ])
+    }
+  } else {
+    // No hay filas definidas: crear hasta dos filas (ítems 1 y 2) a partir de las descripciones superiores
+    if (textoDescTrabajoTabla) {
+      cuerpoActividades.push([
+        1,
+        textoDescTrabajoTabla.replace(/\n/g, ' ').trim(),
+        '',
+        '',
+        '',
+      ])
+    }
+    if (textoDescAdicionalTabla) {
+      cuerpoActividades.push([
+        cuerpoActividades.length + 1,
+        textoDescAdicionalTabla.replace(/\n/g, ' ').trim(),
+        '',
+        '',
+        '',
+      ])
+    }
+    // Si aun así no hay nada, mantener al menos una fila vacía
+    if (cuerpoActividades.length === 0) {
+      cuerpoActividades.push([1, '', '', '', ''])
+    }
   }
 
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
     head: [['Ítem', 'Descripción de la Actividad', 'Fecha inicio', 'Fecha fin', 'Horas reales']],
-    body: opsData,
+    body: cuerpoActividades,
     theme: 'grid',
     styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
     headStyles: {
-      fontSize: FONT_SIZE,
+      fontSize: FONT_SIZE_TABLAS,
       fontStyle: 'bold',
       textColor: [0, 0, 0],
       fillColor: [248, 248, 248],
-      cellPadding: 3,
+      cellPadding: CELL_PADDING,
     },
     bodyStyles: {
-      fontSize: FONT_SIZE,
-      cellPadding: 3,
-      minCellHeight: 10,
+      fontSize: FONT_SIZE_TABLAS,
+      cellPadding: CELL_PADDING,
+      minCellHeight: 7,
       valign: 'top',
     },
     columnStyles: {
@@ -386,14 +441,14 @@ export async function exportarOrdenTrabajoPDF(
       4: { cellWidth: colHoras },
     },
   })
-  y = doc.lastAutoTable.finalY + 6
+  y = doc.lastAutoTable.finalY + 4
   y = ensureSpace(doc, y, headerOpts)
 
   // ——— 4. Operaciones ejecutadas no planeadas (tabla con datos reales: Ítem, Descripción, Hora inicio, Hora fin, Horas reales) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('4. Operaciones Ejecutadas No Planeadas', MARGIN, y)
-  y += 5
+  y += 4
 
   doc.setFont('helvetica', 'normal')
   const opsNoPlaneadas = datosReporte.operacionesNoPlaneadas && datosReporte.operacionesNoPlaneadas.length > 0
@@ -424,16 +479,16 @@ export async function exportarOrdenTrabajoPDF(
     theme: 'grid',
     styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
     headStyles: {
-      fontSize: FONT_SIZE,
+      fontSize: FONT_SIZE_TABLAS,
       fontStyle: 'bold',
       textColor: [0, 0, 0],
       fillColor: [248, 248, 248],
-      cellPadding: 3,
+      cellPadding: CELL_PADDING,
     },
     bodyStyles: {
-      fontSize: FONT_SIZE,
-      cellPadding: 3,
-      minCellHeight: 10,
+      fontSize: FONT_SIZE_TABLAS,
+      cellPadding: CELL_PADDING,
+      minCellHeight: 7,
       valign: 'top',
     },
     columnStyles: {
@@ -444,14 +499,14 @@ export async function exportarOrdenTrabajoPDF(
       4: { cellWidth: colHorasNoP },
     },
   })
-  y = doc.lastAutoTable.finalY + 6
+  y = doc.lastAutoTable.finalY + 4
   y = ensureSpace(doc, y, headerOpts)
 
   // ——— 5. Repuestos utilizados (proporciones: Código 20%, Descripción 60%, Cantidad 20%) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('5. Repuestos utilizados', MARGIN, y)
-  y += 5
+  y += 4
 
   doc.setFont('helvetica', 'normal')
   const repuestos = datosReporte.repuestos && datosReporte.repuestos.length > 0
@@ -479,16 +534,16 @@ export async function exportarOrdenTrabajoPDF(
     theme: 'grid',
     styles: { lineColor: [207, 207, 207], lineWidth: 0.3 },
     headStyles: {
-      fontSize: FONT_SIZE,
+      fontSize: FONT_SIZE_TABLAS,
       fontStyle: 'bold',
       textColor: [0, 0, 0],
       fillColor: [248, 248, 248],
-      cellPadding: 3,
+      cellPadding: CELL_PADDING,
     },
     bodyStyles: {
-      fontSize: FONT_SIZE,
-      cellPadding: 3,
-      minCellHeight: 10,
+      fontSize: FONT_SIZE_TABLAS,
+      cellPadding: CELL_PADDING,
+      minCellHeight: 7,
       valign: 'top',
     },
     columnStyles: {
@@ -497,24 +552,25 @@ export async function exportarOrdenTrabajoPDF(
       2: { cellWidth: colCantRep },
     },
   })
-  y = doc.lastAutoTable.finalY + 6
+  y = doc.lastAutoTable.finalY + 4
   y = ensureSpace(doc, y, headerOpts)
 
   // ——— 6. Observaciones Técnicas (contenido guardado o espacio para escritura manual) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('6. Observaciones Técnicas', MARGIN, y)
-  y += 5
+  y += 4
 
   doc.setFont('helvetica', 'normal')
+  doc.setFontSize(FONT_SIZE_TABLAS)
   const observaciones = (datosReporte.observaciones || '').trim()
   if (observaciones) {
     const lineasObs = doc.splitTextToSize(observaciones, PAGE_WIDTH - 2 * MARGIN - 4)
     doc.text(lineasObs, MARGIN, y)
-    y += lineasObs.length * 5 + 6
+    y += lineasObs.length * 4 + 4
   }
-  const obsLineHeight = 6
-  const obsHeight = 4 * obsLineHeight + 6
+  const obsLineHeight = 4
+  const obsHeight = 4 * obsLineHeight + 4
   if (y + obsHeight > BODY_MAX_Y) {
     doc.addPage()
     drawHeaderOrdenTrabajo(doc, headerOpts)
@@ -529,16 +585,16 @@ export async function exportarOrdenTrabajoPDF(
     }
   }
   y += observaciones ? 0 : obsHeight
-  y += 6
+  y += 4
   y = ensureSpace(doc, y, headerOpts)
 
   // ——— 7. Firmas (solo borde exterior) ———
   doc.setFontSize(FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('7. Firmas', MARGIN, y)
-  y += 5
+  y += 4
 
-  if (y + 50 > BODY_MAX_Y) {
+  if (y + 40 > BODY_MAX_Y) {
     doc.addPage()
     drawHeaderOrdenTrabajo(doc, headerOpts)
     y = BODY_START_Y
@@ -565,8 +621,8 @@ export async function exportarOrdenTrabajoPDF(
       ['Encargado de mantenimiento', encargadoNombre, encargadoFecha, ''],
     ],
     theme: 'plain',
-    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 3 },
-    bodyStyles: { fontSize: FONT_SIZE, cellPadding: 3, minCellHeight: 14 },
+    headStyles: { fillColor: [70, 70, 70], textColor: 255, fontStyle: 'bold', fontSize: FONT_SIZE_TABLAS, cellPadding: CELL_PADDING },
+    bodyStyles: { fontSize: FONT_SIZE_TABLAS, cellPadding: CELL_PADDING, minCellHeight: 10 },
     columnStyles: {
       0: { cellWidth: colRol, fontStyle: 'bold' },
       1: { cellWidth: colNombre },

@@ -46,9 +46,7 @@ export async function listarUsuarios(req, res, next) {
   } catch (e) {
     next(e)
   }
-}
-
-/**
+}/**
  * Crea un usuario. Jefe de Mantenimiento (Calidad, Producción, Mantenimiento, Coordinador) o Super Usuario (cualquier rol).
  * POST /api/usuarios
  * Body: { rolCodigo: string, usuario: string, nombre: string, email?: string, password: string }
@@ -110,9 +108,7 @@ export async function actualizarUsuario(req, res, next) {
   } catch (e) {
     next(e)
   }
-}
-
-/**
+}/**
  * Desactiva un usuario (soft delete). Jefe de Mantenimiento y Super Usuario. No se puede desactivar al Super Usuario ni a sí mismo.
  * DELETE /api/usuarios/:id
  */

@@ -122,7 +122,8 @@ export async function asignarOrden(req, res, next) {
       ? String(req.body.asignadoNombre).trim()
       : null
 
-    // Resolver operario: primero por usuario de login, luego por nombre completo
+    // Resolver operario: primero por usuario de login con rol Operario MTTO, luego por nombre completo con rol,
+    // y finalmente aceptar cualquier usuario activo (cualquier rol) si existe.
     if (asignadoUsuario) {
       const u = await User.findByUsuarioAndRole(asignadoUsuario, ROLES.OPERARIO_MANTENIMIENTO)
       if (u) asignadoA = u.id
@@ -130,6 +131,15 @@ export async function asignarOrden(req, res, next) {
     if (asignadoA == null && asignadoNombre) {
       const u = await User.findByNombreAndRole(asignadoNombre, ROLES.OPERARIO_MANTENIMIENTO)
       if (u) asignadoA = u.id
+    }
+    // Fallback: buscar por usuario o nombre sin restringir rol (para instalaciones donde el operario ya existe con otro rol)
+    if (asignadoA == null && asignadoUsuario) {
+      const uAny = await User.findByUsuario(asignadoUsuario)
+      if (uAny) asignadoA = uAny.id
+    }
+    if (asignadoA == null && asignadoNombre) {
+      const uAnyNombre = await User.findByNombre(asignadoNombre)
+      if (uAnyNombre) asignadoA = uAnyNombre.id
     }
     if (asignadoA == null && req.body.asignadoA != null) {
       asignadoA = Number(req.body.asignadoA)

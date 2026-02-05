@@ -117,9 +117,7 @@ export async function ensureOperarios() {
 export async function listarUsuarios() {
   await ensureOperarios()
   return listAll()
-}
-
-/**
+}/**
  * Actualiza nombre, usuario y/o contraseña de un usuario.
  * @param {number} id
  * @param {Object} data - { nombre?: string, usuario?: string, password?: string }
@@ -133,9 +131,7 @@ export async function actualizarUsuario(id, data) {
   }
   if (Object.keys(payload).length === 0) return
   await updateById(id, payload)
-}
-
-/**
+}/**
  * Desactiva un usuario (soft delete).
  * @param {number} id
  */

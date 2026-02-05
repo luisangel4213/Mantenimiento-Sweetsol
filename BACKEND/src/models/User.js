@@ -92,6 +92,46 @@ export async function findByUsuarioAndRole(usuario, roleCodigo) {
 }
 
 /**
+ * Busca un usuario por nombre de usuario (cualquier rol).
+ * @param {string} usuario - Nombre de usuario (ej: 'RPADILLA')
+ * @returns {Promise<{ id: number, usuario: string, email: string | null, nombre: string, role: string } | null>}
+ */
+export async function findByUsuario(usuario) {
+  if (!usuario) return null
+  const [rows] = await query(
+    `SELECT u.id, u.usuario, u.email, u.nombre, r.codigo AS role
+     FROM usuarios u
+     INNER JOIN roles r ON r.id = u.rol_id
+     WHERE u.usuario = ? AND u.activo = 1
+     LIMIT 1`,
+    [String(usuario).trim()]
+  )
+  return rows[0] || null
+}
+
+/**
+ * Busca un usuario por nombre completo (cualquier rol).
+ * Comparación sin distinguir mayúsculas/minúsculas y sin espacios extra al inicio/final.
+ * @param {string} nombre - Nombre completo (ej: 'Luis Ángel Serna')
+ * @returns {Promise<{ id: number, usuario: string, email: string | null, nombre: string, role: string } | null>}
+ */
+export async function findByNombre(nombre) {
+  if (!nombre) return null
+  const normalized = String(nombre).trim()
+  if (!normalized) return null
+  const [rows] = await query(
+    `SELECT u.id, u.usuario, u.email, u.nombre, r.codigo AS role
+     FROM usuarios u
+     INNER JOIN roles r ON r.id = u.rol_id
+     WHERE u.activo = 1
+       AND LOWER(TRIM(u.nombre)) = LOWER(?)
+     LIMIT 1`,
+    [normalized]
+  )
+  return rows[0] || null
+}
+
+/**
  * Busca un usuario por nombre completo y rol (para asociar operario por nombre).
  * Comparación sin distinguir mayúsculas/minúsculas y sin espacios extra al inicio/final.
  * @param {string} nombre - Nombre completo (ej: 'Luis Ángel Serna')

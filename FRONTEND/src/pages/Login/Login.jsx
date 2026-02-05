@@ -10,7 +10,10 @@ export const Login = () => {
   const { user, login, isAuthenticated, isLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = location.state?.from?.pathname
+  const fromLocation = location.state?.from
+  const from = fromLocation
+    ? fromLocation.pathname + (fromLocation.search || '') + (fromLocation.hash || '')
+    : null
 
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
@@ -56,7 +59,9 @@ export const Login = () => {
         password,
       })
       const target =
-        from && from !== '/' ? from : getDefaultPathForRole(userData?.role)
+        from && from !== '/' && from.startsWith('/')
+          ? from
+          : getDefaultPathForRole(userData?.role)
       navigate(target, { replace: true })
     } catch (err) {
       setError(getLoginErrorMessage(err))
